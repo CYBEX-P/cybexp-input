@@ -9,8 +9,12 @@ COMPRESS_ALGO = ".bz2"  # need '.' for string fmt
 
 decompress_algos = {".bz2": bz2.decompress, ".gz": gzip.decompress}
 
+def inputCheck(args):
+    check_a = "seconds_between_fetches" in args
+    return check_a
 
-class PhishtankSource(CybexSource):
+
+class input_plugin(CybexSource):
     def fetch_and_post(self):
         logging.info(f"Retrieving events from Phishtank at {URL}")
         response = requests.get(

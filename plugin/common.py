@@ -1,6 +1,9 @@
 # Imports
 import datetime, json, logging, random, requests, threading, time, uuid
 
+def inputCheck(args):
+    return False
+
 
 class BadConfig(Exception):
     pass
@@ -20,11 +23,11 @@ class CybexSource:
 
     def __init__(self, api_config, input_config):
         logging.info(
-            f"Configuring {self.__class__.__name__} with "
-            f"type = {input_config['type']} "
-            f"orgid = {input_config['orgid']} "
-            f"typtag = {input_config['typtag']} "
-            f"timezone = {input_config['timezone']} "
+            "Configuring {} with ".format(input_config["human_name"])+
+            "type = {} ".format(input_config['input_plugin_name'])+
+            "orgid = {} ".format(input_config['orgid'])+
+            "typtag = {} ".format(input_config['archive_processing_typetag'])+
+            "timezone = {} ".format(input_config['timezone'])
         )
 
         # Should extract orgid, typtag, timezone from input_config.json
@@ -33,7 +36,7 @@ class CybexSource:
 
         def validate_input_config():
             """ Validate configuration for this specific Cybex vuln. source. """
-            if ("orgid", "typtag") - input_config.keys():
+            if ("orgid", "archive_processing_typetag") - input_config.keys():
                 raise BadConfig("Config needs an Org ID and a type tag.")
 
             try:
@@ -62,7 +65,7 @@ class CybexSource:
         api_responses = []
 
         if events:
-            logging.info(f"Posting {len(events)} events from {self.name} to Cybex API.")
+            logging.info(f"Posting {len(events)} events from {self.human_name} to Cybex API.")
 
         for event in events:
             if isinstance(event, dict):
@@ -80,9 +83,9 @@ class CybexSource:
                         headers=headers,
                         data={
                             "orgid": self.orgid,
-                            "typtag": self.typtag,
+                            "typtag": self.archive_processing_typetag,
                             "timezone": self.timezone,
-                            "name": self.name,
+                            "name": self.human_name,
                         },
                     ) as r:
                         api_responses.append((r.status_code, r.content))
@@ -94,12 +97,12 @@ class CybexSource:
                             break
                         else:
                             logging.error(
-                                f"Failed to post {self.name} to Cybex API:\n{r.text}"
+                                f"Failed to post {self.human_name} to Cybex API:\n{r.text}"
                             )
                             n_failed_requests += 1
 
                 except requests.exceptions.ConnectionError as e:
-                    logging.exception(f"Failed to post {self.name} to Cybex API")
+                    logging.exception(f"Failed to post {self.human_name} to Cybex API")
                     n_failed_requests += 1
 
                 exponential_backoff(n_failed_requests)
@@ -113,7 +116,7 @@ class CybexSourceFetcher(threading.Thread):
     def __init__(self, cybex_source: CybexSource):
         super().__init__()
         self.source = cybex_source
-        self.source_name = self.source.__class__.__name__
+        self.source_name = cybex_source.input_plugin_name
 
         if hasattr(cybex_source, "seconds_between_fetches"):
             self.seconds_between_fetches = cybex_source.seconds_between_fetches

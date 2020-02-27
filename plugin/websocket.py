@@ -4,15 +4,17 @@ from .common import *
 from lomond import WebSocket
 from lomond.persist import persist
 
+def inputCheck(args):
+    return True
 
-class WebsocketSource(CybexSource):
+class input_plugin(CybexSource):
     def __init__(self, api_config, input_config):
         super().__init__(api_config, input_config)
         self.ws = WebSocket(self.url)
 
     def __str__(self):
         return "Websocket input, orgid = {}, typtag = {}, timezone = {}, url = {}".format(
-            self.orgid, self.typtag, self.timezone, self.url
+            self.orgid, self.archive_processing_typetag, self.timezone, self.url
         )
 
     def fetch_and_post(self):

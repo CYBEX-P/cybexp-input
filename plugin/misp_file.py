@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 from .common import *
 
+def inputCheck(args):
+    check_a = "directory" in args
+    return check_a # and ...
 
-class MISPFileSource(CybexSource):
-    def __init__(self, api_config, input_config, filename):
-        self.filename = filename
+class input_plugin(CybexSource):
+    def __init__(self, api_config, input_config):
+        self.filename = input_config.pop("directory")
         super().__init__(api_config, input_config)
 
     def __str__(self):

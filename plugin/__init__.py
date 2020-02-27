@@ -1,4 +1,1 @@
-from .websocket import *
-from .misp_api import *
-from .misp_file import *
-from .phishtank import *
+from . import websocket, misp_api , misp_file, phishtank 
