@@ -9,13 +9,15 @@ def inputCheck(args):
     check_b = "seconds_between_fetches" in args
     return check_a and check_b # and ....
 
-class input_plugin(CybexSource):
+class InputPlugin(CybexSource):
     def __init__(self, api_config, input_config):
         super().__init__(api_config, input_config)
         self.misp_orgs = input_config["orgs"]
 
     def fetch_and_post(self):
         for org in self.misp_orgs:
+            # if self.backoffExit.is_set():
+            #     break
             misp = PyMISP(self.misp_url, self.misp_key, self.misp_verifycert)
             relative_path = "events/restSearch"
             body = {

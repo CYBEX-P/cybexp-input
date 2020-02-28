@@ -134,7 +134,7 @@ class InputDB():
          pluginName = "plugin.{}".format(input_plugin_name)
          # print(pluginName)
          plugin = importlib.import_module(pluginName)
-         if config_type:
+         if config_type: # only check if we are updating a plugin configuration
             check = plugin.inputCheck(record)
             if not check:
                return False
@@ -200,11 +200,26 @@ class InputDB():
       return self.enable_disable_plugin(input_plugin_name, True)
 
 
+   def getValidPlugins(self):
+      plugins = self.getPlugins(query={"enabled": True},select={"_id":0,"input_plugin_name":1})
+      valid = list()
+      for record in plugins:
+         valid.append(record["input_plugin_name"])
+      return valid
+      # valid = [plug["input_plugin_name"] for plug in plugins]
+      # print("Valid:",valid)
+      # return valid
 
 
+   def getValidConfig(self, query={}, select={"_id": 0}):
+      temp = list()
+      valid = self.getValidPlugins()
 
+      temp.append({"input_plugin_name": { "$in": valid}})
+      temp.append(query)
+      masterQ = { "$and": temp }
 
-
+      return self.getConfig(masterQ, select)
 
 
 
@@ -216,19 +231,19 @@ class InputDB():
 if __name__ == "__main__":
    a = InputDB()
 
-   a.insert_config(**{ "human_name": "abc1", 
-                     "input_plugin_name": "phishtank" ,
-                     "archive_processing_typetag": "processing1" ,
-                     "timezone": "UTC" ,
-                     "orgid": "random stuff" ,
-                     "testtag1": "Highway 1" ,
-                     "testtag2": "Highway 2" ,
-                  })
+   # a.insert_config(**{ "human_name": "abc1", 
+   #                   "input_plugin_name": "phishtank" ,
+   #                   "archive_processing_typetag": "processing1" ,
+   #                   "timezone": "UTC" ,
+   #                   "orgid": "random stuff" ,
+   #                   "testtag1": "Highway 1" ,
+   #                   "testtag2": "Highway 2" ,
+   #                })
 
-   a.import_bulk_config("config2.json")
-   h = "70453c868caa749141b461a28feca64d41363e46ff97cf6a7f9b916ac83c8ad725459f725b597a1f198849072289c8e18281e058a7f64e45d9110e3b92b3923e"
-   a.update_config(h ,{"new_value":"test"})
-   # a.insert_config(**{ "human_name": "abc2", 
+   # a.import_bulk_config("config2.json")
+   # h = "70453c868caa749141b461a28feca64d41363e46ff97cf6a7f9b916ac83c8ad725459f725b597a1f198849072289c8e18281e058a7f64e45d9110e3b92b3923e"
+   # a.update_config(h ,{"new_value":"test"})
+   # # a.insert_config(**{ "human_name": "abc2", 
    #                   "input_plugin_name": "openphish" ,
    #                   "archive_processing_typetag": "processing2" ,
    #                   "timezone": "UTC" ,
@@ -259,12 +274,14 @@ if __name__ == "__main__":
    # print([item for item in a.getAll()])
    # for item in a.getAll():
    #    print(item)
-   ab = a.addPlugin("amazing name","test",True)
-   ac = a.addPlugin("amazing 2","phishtank",True)
-   ad = a.addPlugin("amazing 3","misp_file",False)
+   # ab = a.addPlugin("amazing name","test",True)
+   # ac = a.addPlugin("amazing 2","phishtank",True)
+   # ad = a.addPlugin("amazing 3","misp_file",False)
 
-   print(ab,ac,ad)
-   bb = a.enablePlugin("misp_file")
-   print(bb)
-   cc = a.disablePlugin("misp_file")
-   print(cc)
+   # print(ab,ac,ad)
+   # bb = a.enablePlugin("misp_file")
+   # print(bb)
+   # cc = a.disablePlugin("misp_file")
+   # print(cc)
+
+   pass

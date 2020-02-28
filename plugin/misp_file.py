@@ -5,7 +5,7 @@ def inputCheck(args):
     check_a = "directory" in args
     return check_a # and ...
 
-class input_plugin(CybexSource):
+class InputPlugin(CybexSource):
     def __init__(self, api_config, input_config):
         self.filename = input_config.pop("directory")
         super().__init__(api_config, input_config)

@@ -1,5 +1,7 @@
 # Imports
-import datetime, json, logging, random, requests, threading, time, uuid
+import datetime, json, logging, random, requests, threading, time, uuid, signal
+
+loggerName = "InputLogger"
 
 def inputCheck(args):
     return False
@@ -9,20 +11,36 @@ class BadConfig(Exception):
     pass
 
 
-def exponential_backoff(n):
+def exponential_backoff(n, threadEvent=None, name=None):
+    logger = logging.getLogger(loggerName)
+
     s = min(3600, (2 ** n) + (random.randint(0, 1000) / 1000))
     resume_time = (datetime.datetime.now() + datetime.timedelta(seconds=s)).strftime(
         "%I:%M:%S %p"
     )
-    logging.error(f"Sleeping for {s} seconds, will resume around {resume_time}.")
-    time.sleep(s)
+    logger.error(f"Sleeping for {s} seconds, will resume around {resume_time}.")
+    if threadEvent:
+        threadEvent.clear() # set to false
+        requested_to_exit = threadEvent.wait(s) #  wait  or exit on set
+        if not name:
+            name = "backoff"
+        if requested_to_exit:
+            logger.info(
+            f"{name}-- early exiting backoff."
+            )
+    else: 
+        time.sleep(s)
 
 
 class CybexSource:
     timezone = "UTC"
 
     def __init__(self, api_config, input_config):
-        logging.info(
+        self.logger = logging.getLogger(loggerName)
+        self.exit_signal = threading.Event()
+        self.backoffExit = threading.Event()
+
+        self.logger.info(
             "Configuring {} with ".format(input_config["human_name"])+
             "type = {} ".format(input_config['input_plugin_name'])+
             "orgid = {} ".format(input_config['orgid'])+
@@ -65,7 +83,7 @@ class CybexSource:
         api_responses = []
 
         if events:
-            logging.info(f"Posting {len(events)} events from {self.human_name} to Cybex API.")
+            self.logger.info(f"Posting {len(events)} events from {self.human_name} to Cybex API.")
 
         for event in events:
             if isinstance(event, dict):
@@ -73,9 +91,9 @@ class CybexSource:
             data = event.encode()
             files = {"file": data}
             headers = {"Authorization": "Bearer " + self.token}
-
-            while True:
-                n_failed_requests = 0
+            
+            n_failed_requests = 0
+            while not self.exit_signal.is_set():
                 try:
                     with requests.post(
                         self.post_url,
@@ -96,53 +114,71 @@ class CybexSource:
                             n_failed_requests = 0
                             break
                         else:
-                            logging.error(
+                            self.logger.error(
                                 f"Failed to post {self.human_name} to Cybex API:\n{r.text}"
                             )
                             n_failed_requests += 1
+                except KeyboardInterrupt:
+                    self.exit()
 
                 except requests.exceptions.ConnectionError as e:
-                    logging.exception(f"Failed to post {self.human_name} to Cybex API")
+                    self.logger.exception(f"Failed to post {self.human_name} to Cybex API")
                     n_failed_requests += 1
 
-                exponential_backoff(n_failed_requests)
+                # print(n_failed_requests)
+                exponential_backoff(n_failed_requests,self.backoffExit, "plugin.{}.post_event_to_cybex_api".format(self.input_plugin_name))
 
         return api_responses
 
+    def exit(self):
+        self.backoffExit.set()
+        print("source")
+    def exit_NOW(self):
+        self.exit_signal.set()
+        self.backoffExit.set()
 
 class CybexSourceFetcher(threading.Thread):
     seconds_between_fetches = 10
 
     def __init__(self, cybex_source: CybexSource):
         super().__init__()
+        self.exit_signal = threading.Event()
+        self.backoffExit = threading.Event()
+        self.logger = logging.getLogger(loggerName)
+
         self.source = cybex_source
         self.source_name = cybex_source.input_plugin_name
 
         if hasattr(cybex_source, "seconds_between_fetches"):
             self.seconds_between_fetches = cybex_source.seconds_between_fetches
 
-        logging.info(
+        self.logger.info(
             f"plugin.{self.source_name}-- Applying rate limiting of {self.seconds_between_fetches} seconds between fetches"
         )
 
     def rate_limit(self, n_failed_queries):
         """ Can use more complicated limiting logic; sleep for now. """
         if n_failed_queries > 0:
-            logging.warning(
+            self.logger.warning(
                 f"plugin.{self.source_name}-- backing off exponentially due to failures."
             )
-            exponential_backoff(n_failed_queries)
+            exponential_backoff(n_failed_queries, self.backoffExit, "plugin.{}".format(self.source_name))
         else:
-            logging.info(
+            self.logger.info(
                 f"plugin.{self.source_name}-- waiting for {self.seconds_between_fetches}."
             )
-            time.sleep(self.seconds_between_fetches)
 
+            self.backoffExit.clear() # set to false
+            requested_to_exit = self.backoffExit.wait(self.seconds_between_fetches) #  wait  or exit on set
+            if requested_to_exit:
+                self.logger.info(
+                f"plugin.{self.source_name}-- early exiting backoff."
+                )
     def run(self):
         n_failed_queries = 0
-        while True:
+        while not self.exit_signal.is_set():
             try:
-                logging.info(
+                self.logger.info(
                     f"Fetching vulnerability information from {self.source_name}."
                 )
                 # In general, we expect fetch and post to be atomic operations
@@ -153,10 +189,50 @@ class CybexSourceFetcher(threading.Thread):
                 # fetch_and_post is implemented non-atomically (drops read-once
                 # data or can succeed even if data is partially reported), then
                 # we may report data to the Cybex API out-of-order or incompletely
-                self.source.fetch_and_post()
+                try:
+                    self.source.fetch_and_post()
+                except KeyboardInterrupt:
+                    self.exit()
                 n_failed_queries = 0
+            except KeyboardInterrupt:
+                self.exit()
             except Exception:
-                logging.error(f"plugin.{self.source_name}-- ", exc_info=True)
+                self.logger.error(f"plugin.{self.source_name}-- ", exc_info=True)
                 n_failed_queries += 1
 
-            self.rate_limit(n_failed_queries)
+            if not self.exit_signal.is_set():
+                self.rate_limit(n_failed_queries)
+
+    def exit(self):
+        self.logger.info("{}-- Handling exit.".format(self.source_name))
+        self.exit_signal.set()
+        self.backoffExit.set()
+        self.source.exit()
+        print("backoff exit:",self.backoffExit.is_set())
+        print("exit:",self.exit_signal.is_set())
+    def exit_NOW(self):
+        self.logger.info("{}-- Handling exit.".format(self.source_name))
+        self.exit_signal.set()
+        self.backoffExit.set()
+        self.source.exit_NOW()
+        print("backoff exit:",self.backoffExit.is_set())
+        print("exit:",self.exit_signal.is_set())
+
+    def signal_handler(self,sig):
+        print("##### start ##########")
+        print(sig)
+        if sig == signal.SIGTERM:
+            print("will do")
+            self.exit()
+        if sig == signal.SIGINT:
+            self.exit()
+        if sig == signal.SIGKILL:
+            print("OK i will kill myself")
+            self.exit_NOW()
+        else:
+            self.exit()
+        print("#####  end  ##########")
+
+
+
+        

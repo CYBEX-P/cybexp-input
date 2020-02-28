@@ -14,17 +14,20 @@ def inputCheck(args):
     return check_a
 
 
-class input_plugin(CybexSource):
+class InputPlugin(CybexSource):
     def fetch_and_post(self):
         logging.info(f"Retrieving events from Phishtank at {URL}")
         response = requests.get(
             f"{URL}/{self.phishtank_api_key}/online-valid.json{COMPRESS_ALGO}"
         )
 
+        if "exceeded the request rate limit" in response.text:
+            return
         if COMPRESS_ALGO:
             logging.info(
                 f"Decompressing API response from Phishtank with {COMPRESS_ALGO}"
             )
+            print(response.content)
             text = decompress_algos[COMPRESS_ALGO](response.content)
         else:
             text = response.text

@@ -5,23 +5,78 @@ import logging
 import os
 from pathlib import Path
 from typing import Collection
+import importlib
+import inspect
+import time
+import signal
 
 import plugin
 import logs
 import database as db
-import importlib
+
+
 
 plugin_for_type = {
-    "misp_api": plugin.misp_api.input_plugin,
-    "misp_file": plugin.misp_file.input_plugin,
-    "websocket": plugin.websocket.input_plugin,
-    "phishtank": plugin.phishtank.input_plugin,
+    "misp_api": plugin.misp_api.InputPlugin,
+    "misp_file": plugin.misp_file.InputPlugin,
+    "websocket": plugin.websocket.InputPlugin,
+    "phishtank": plugin.phishtank.InputPlugin,
 }
 
 loggerName = "InputLogger"
 
+exit_tries = 0
+
+def send_signals(threads, sig):
+    for plg in threads:
+        # print(plg)
+        threads[plg].signal_handler(sig)
+
+def signal_handler(sig,frame):
+    global threads, exit_tries
+    print("\nhandled signal {}, {}".format(sig,frame))
+    print(threads.keys())
+    if sig == signal.SIGINT or sig == signal.SIGTERM:
+        print("EXIT TRIES:",exit_tries)
+        exit_tries +=1
+        signal_to_send = signal.SIGTERM
+        if exit_tries >= 2:
+            signal_to_send = signal.SIGKILL
+        try:
+            send_signals(threads,signal_to_send)
+        except:
+            pass
+    # sys.exit(0)
+
 class NoSuchPlugin(Exception):
     pass
+
+
+def getConfigs(plugins_to_run:list):
+    inputDB = db.InputDB()
+    configs = inputDB.getValidConfig(query={"input_plugin_name": { "$in": plugins_to_run}},select={"_id":0})
+    return configs
+
+def getValidPlugins():
+    inputDB = db.InputDB()
+    plugins = inputDB.getValidPlugins()
+    return plugins
+
+def checkPlugin(name):
+    try:
+        pluginName = "plugin.{}".format(name)
+        # print(pluginName)
+        plugin = importlib.import_module(pluginName)
+
+        valid = 'InputPlugin' in inspect.getmembers(plugin)
+        del plugin
+
+        return valid
+
+    except ModuleNotFoundError:
+        print("Failed to import module")
+        # print("Unexpected error:", sys.exc_info()[0])
+        return False
 
 
 def get_config_file(filename="../config.json"):
@@ -69,33 +124,41 @@ def config_for_source_type(config_file, source_type, ndx=0):
 
 
 def run_input_plugins(plugins_to_run: Collection[str]):
+    logger = logging.getLogger(loggerName)
+
     config_file = get_config_file("config.json")
     api_config = config_file["api_srv"]
 
     plugins_to_run = list(plugins_to_run)
 
-    inputDB = db.InputDB()
-    configs = inputDB.getConfig(query={"input_plugin_name": { "$in": plugins_to_run}},select={"_id":0})
+    
     # print(list(configs))
 
-    for input_config in configs:
+    for input_config in getConfigs(plugins_to_run):
         input_plugin_name = input_config["input_plugin_name"]
         try:
             pluginName = "plugin.{}".format(input_plugin_name)
             myplugin = importlib.import_module(pluginName)
             check = myplugin.inputCheck(input_config)
             if not check:
-                self.logger.error("{} failed input check. This should NOT happen".format(pluginName))
+                logger.error("{} failed input check. This should NOT happen".format(pluginName))
 
         except ModuleNotFoundError:
-            self.logger.error("Failed to import module, {}.".format(pluginName))
+            logger.error("Failed to import module, {}.".format(pluginName))
             continue
 
-        # run the plugin 
-        plugin.common.CybexSourceFetcher(
-            myplugin.input_plugin(api_config, input_config)
-        ).start()
+        threads = dict()
+        # try:
+            # run the plugin 
+        thread = plugin.common.CybexSourceFetcher(
+            myplugin.InputPlugin(api_config, input_config)
+        )
+        thread.start()
+        threads[input_plugin_name] = thread
+        # except:
+        #     logger.error("Fail to run thread({}).".format(input_plugin_name))
 
+        return threads
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -106,12 +169,12 @@ if __name__ == "__main__":
         "--plugins",
         nargs="+",
         help="Names of plugin types to run.",
-        default=plugin_for_type.keys(),
+        default=getValidPlugins(),
     )
     args = parser.parse_args()
 
     for p in args.plugins:
-        if p not in plugin_for_type:
+        if p not in getValidPlugins():
             raise NoSuchPlugin(f"{p} isn't a valid plugin.")
 
     # Set this up after argparse since it may be helpful to get those errors
@@ -142,4 +205,12 @@ if __name__ == "__main__":
     logger.info("Starting CTI collector...")
     logger.info(f"Running the following plugins: {args.plugins}")
 
-    run_input_plugins(args.plugins)
+    signal.signal(signal.SIGINT, signal_handler) # send signal to all threads
+
+    print(args.plugins)
+    threads = run_input_plugins(args.plugins) 
+
+    print(threads)
+    print("All running")
+
+

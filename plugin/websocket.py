@@ -7,7 +7,7 @@ from lomond.persist import persist
 def inputCheck(args):
     return True
 
-class input_plugin(CybexSource):
+class InputPlugin(CybexSource):
     def __init__(self, api_config, input_config):
         super().__init__(api_config, input_config)
         self.ws = WebSocket(self.url)
