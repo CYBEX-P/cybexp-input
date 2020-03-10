@@ -122,6 +122,7 @@ class InputDB():
       enabled = record.pop("enabled")
 
       if config_type:
+         record["prev_hash"] = record["hash"]
          newHash = hash_string(str(record))
          record["hash"] = newHash
 
@@ -211,7 +212,7 @@ class InputDB():
       # return valid
 
 
-   def getValidConfig(self, query={}, select={"_id": 0}):
+   def getValidConfig(self, query={}, select={"_id": 0}): # TODO fix not checking if config is valid
       temp = list()
       valid = self.getValidPlugins()
 
@@ -222,14 +223,68 @@ class InputDB():
       return self.getConfig(masterQ, select)
 
 
+   def notifyStream(self, resume = False):
+      if resume and self.resumeToken:
+         self.changeStreamCursor = self.confCol.watch([], {
+         resumeAfter: resumeToken,
+         # fullDocument: "updateLookup"
+        })
+        # print("\r\nResuming change stream with token " + JSON.stringify(resumeToken) + "\r\n");
+        # resumeStream(newChangeStreamCursor)
+      # self.changeStreamCursor.close()
+      while not self.changeStreamCursor.isExhausted():
+         if self.changeStreamCursor.hasNext():
+            change = self.changeStreamCursor.next()
+            print(change)
+            self.resumeToken = change._id
+            
+               
+         
+       
 
 
 
+
+   def notifyChanges(self):
+   # https://www.mongodb.com/blog/post/an-introduction-to-change-streams
+   # https://docs.mongodb.com/manual/tutorial/deploy-replica-set/
+   # https://docs.mongodb.com/manual/reference/method/db.collection.watch/#db.collection.watch
+   # https://docs.mongodb.com/manual/changeStreams/#open-a-change-stream # main info 
+   # 
+      # print("hi")
+      self.changeStreamCursor = self.confCol.watch()
+   #    # try:
+   #    self.notifyStream()
+   # # except:
+      # self.notifyStream(True)
+
+   # function resumeStream(changeStreamCursor, forceResume = false) {
+   #   let resumeToken;
+   #   while (!changeStreamCursor.isExhausted()) {
+   #     if (changeStreamCursor.hasNext()) {
+   #       change = changeStreamCursor.next();
+   #       print(JSON.stringify(change));
+   #       resumeToken = change._id;
+   #       if (forceResume === true) {
+   #         print("\r\nSimulating app failure for 10 seconds...");
+   #         sleepFor(10000);
+   #         changeStreamCursor.close();
+   #         const newChangeStreamCursor = collection.watch([], {
+   #           resumeAfter: resumeToken
+   #         });
+   #         print("\r\nResuming change stream with token " + JSON.stringify(resumeToken) + "\r\n");
+   #         resumeStream(newChangeStreamCursor);
+   #       }
+   #     }
+   #   }
+   #   resumeStream(changeStreamCursor, forceResume);
+   # }
 
 
 
 if __name__ == "__main__":
    a = InputDB()
+   a.notifyChanges()
 
    # a.insert_config(**{ "human_name": "abc1", 
    #                   "input_plugin_name": "phishtank" ,

@@ -26,16 +26,19 @@ plugin_for_type = {
 loggerName = "InputLogger"
 
 exit_tries = 0
+startArgs = dict()
 
 def send_signals(threads, sig):
     for plg in threads:
+        config = plg[0]
+        thread = plg[1]
         # print(plg)
-        threads[plg].signal_handler(sig)
+        thread.signal_handler(sig)
 
 def signal_handler(sig,frame):
-    global threads, exit_tries
+    global threads, exit_tries, startArgs
     print("\nhandled signal {}, {}".format(sig,frame))
-    print(threads.keys())
+    # print(threads.keys())
     if sig == signal.SIGINT or sig == signal.SIGTERM:
         print("EXIT TRIES:",exit_tries)
         exit_tries +=1
@@ -46,6 +49,13 @@ def signal_handler(sig,frame):
             send_signals(threads,signal_to_send)
         except:
             pass
+    elif sig == signal.SIGUSR1:
+        print("recieved user signal 1: restating threads")
+        send_signals(threads,signal.SIGTERM)
+        time.sleep(1)
+        threads = run_input_plugins(startArgs) 
+        print("Done restarting")
+
     # sys.exit(0)
 
 class NoSuchPlugin(Exception):
@@ -133,7 +143,7 @@ def run_input_plugins(plugins_to_run: Collection[str]):
 
     
     # print(list(configs))
-
+    threads = list() 
     for input_config in getConfigs(plugins_to_run):
         input_plugin_name = input_config["input_plugin_name"]
         try:
@@ -147,16 +157,15 @@ def run_input_plugins(plugins_to_run: Collection[str]):
             logger.error("Failed to import module, {}.".format(pluginName))
             continue
 
-        threads = dict()
-        # try:
+        try:
             # run the plugin 
-        thread = plugin.common.CybexSourceFetcher(
-            myplugin.InputPlugin(api_config, input_config)
-        )
-        thread.start()
-        threads[input_plugin_name] = thread
-        # except:
-        #     logger.error("Fail to run thread({}).".format(input_plugin_name))
+            thread = plugin.common.CybexSourceFetcher(
+                myplugin.InputPlugin(api_config, input_config)
+            )
+            thread.start()
+            threads.append((input_config,thread))
+        except:
+            logger.error("Fail to run thread({}).".format(input_plugin_name))
 
         return threads
 
@@ -195,6 +204,7 @@ if __name__ == "__main__":
     formatter = logs.exformatter
 
     logs.setLoggerLevel(loggerName,logging.DEBUG)
+    logs.setup_stdout(loggerName,formatter=formatter)
     logs.setup_file(loggerName,formatter=formatter,fileLoc=logfile)
     # logs.setup_email(loggerName,formatter=formatter,
     #     from_email='ignaciochg@gmail.com',
@@ -206,9 +216,13 @@ if __name__ == "__main__":
     logger.info(f"Running the following plugins: {args.plugins}")
 
     signal.signal(signal.SIGINT, signal_handler) # send signal to all threads
+    signal.signal(signal.SIGTERM, signal_handler) # send signal to all threads
+    signal.signal(signal.SIGUSR1, signal_handler) # send sig to threads, restart
 
     print(args.plugins)
-    threads = run_input_plugins(args.plugins) 
+    startArgs = args.plugins # important to set global var
+
+    threads = run_input_plugins(startArgs) 
 
     print(threads)
     print("All running")

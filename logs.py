@@ -1,5 +1,6 @@
 import logging 
 import logging.handlers
+import sys
 
 exformatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
@@ -59,11 +60,17 @@ def setup_email(loggerName="InputLogger",formatter=exformatter, level=logging.DE
    gm.setFormatter(formatter)
    logger.addHandler(gm)
 
-
-
+def setup_stdout(loggerName="InputLogger",level=logging.DEBUG,formatter=exformatter):
+   logger = logging.getLogger(loggerName)
+   # logger = logging.root
+   stdouth = logging.StreamHandler(sys.stdout)
+   stdouth.setLevel(level)  
+   stdouth.setFormatter(formatter)
+   logger.addHandler(stdouth)
 
 if __name__ == "__main__":
    setLoggerLevel()
+   setup_stdout(formatter=exformatter)
    setup_file(formatter=exformatter)
    setup_email(formatter=exformatter)
    # logger.debug('debug message')

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from .common import *
 
-def inputCheck(args):
+def inputCheck(args): # TODO replace with JSON schema validation
     check_a = "directory" in args
     return check_a # and ...
 
@@ -27,3 +27,6 @@ class InputPlugin(CybexSource):
             ]
         f.close()
         os.rename(self.filename, self.filename + ".bak")
+
+
+    

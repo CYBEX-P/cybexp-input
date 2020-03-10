@@ -32,6 +32,8 @@ class InputPlugin(CybexSource):
                     "api.input.misp.MISPServerSource.fetch -- \n" + json.dumps(r, indent=4)
                 )
             elif "response" in r.keys():
+                print("posting")
+
                 self.post_event_to_cybex_api(r["response"])
             else:
                 logging.error(
