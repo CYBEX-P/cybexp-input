@@ -4,12 +4,13 @@ import pymongo
 import json 
 import importlib
 import logging
-import hashlib
+#import hashlib
 import sys
+import uuid
 
-def hash_string(hash_string): # TODO, make deterministic
-   sha_signature = hashlib.sha512(hash_string.encode()).hexdigest()
-   return sha_signature
+# def hash_string(hash_string): # TODO, make deterministic
+#    sha_signature = hashlib.sha512(hash_string.encode()).hexdigest()
+#    return sha_signature
 
 
 class InputDB():
@@ -18,7 +19,7 @@ class InputDB():
       self.client = pymongo.MongoClient(URL)
       self.db = self.client[DBName]
       self.confCol = self.db[configColl]
-      self.confCol.create_index("hash", unique=True)
+      self.confCol.create_index("uuid", unique=True)
       self.confCol.create_index("input_plugin_name")
 
       # define plugin coll
@@ -71,7 +72,7 @@ class InputDB():
       }
       # config.update(kwargs)
       # print(config)
-      args["hash"] = hash_string(str(args))
+      args["uuid"] = uuid.uuid() #hash_string(str(args))
       args["enabled"] = enabled
       try:
          x = self.confCol.insert_one(args)
@@ -79,7 +80,7 @@ class InputDB():
          print("duplicate key")
          return False
       # print(x)
-      return x.inserted_id
+      return args["uuid"] #x.inserted_id
 
    def getConfig(self, query={},select={ "_id": 0 }):
       return self.confCol.find(query,select)
@@ -106,7 +107,7 @@ class InputDB():
       # query = { "hash": conf_hash }
       if len(query) > 1: # only one key allowed
          return False
-      record = coll.find_one(query,{"_id":0,"hash":0})
+      record = coll.find_one(query,{"_id":0})
       # print("query:",query)
       # print("record:\t\t",record)
       # print("update:",update)
@@ -121,10 +122,6 @@ class InputDB():
 
       enabled = record.pop("enabled")
 
-      if config_type:
-         record["prev_hash"] = record["hash"]
-         newHash = hash_string(str(record))
-         record["hash"] = newHash
 
       record["enabled"] = enabled
       print("record:\t\t",record)
@@ -154,16 +151,16 @@ class InputDB():
          print("New or modified record already exists. cant modify")
          return False
 
-   def update_config(self,conf_hash, update:dict):
-      return self.update_one(self.confCol, { "hash": conf_hash } , update)
+   def update_config(self,conf_uuid, update:dict):
+      return self.update_one(self.confCol, { "uuid": conf_uuid } , update)
 
-   def enable_disable_conf(self, conf_hash, enabled:bool):
-      return self.update_config(conf_hash , {"enabled": enabled})
+   def enable_disable_conf(self, conf_uuid, enabled:bool):
+      return self.update_config(conf_uuid , {"enabled": enabled})
 
-   def disableConfig(self, conf_hash):
-      return self.enable_disable_conf(conf_hash, False)
-   def enableConfig(self, conf_hash):
-      return self.enable_disable_conf(conf_hash, True)
+   def disableConfig(self, conf_uuid):
+      return self.enable_disable_conf(conf_uuid, False)
+   def enableConfig(self, conf_uuid):
+      return self.enable_disable_conf(conf_uuid, True)
 
    def addPlugin(self,human_name, input_plugin_name, enabled=False):
 
@@ -279,6 +276,16 @@ class InputDB():
    #   }
    #   resumeStream(changeStreamCursor, forceResume);
    # }
+
+
+
+# thre will be a new colloectin, so the watch stream wont trigger when chanign these
+   def createPID(self,uuid, pid):
+      pass
+   def getPID(self,uuid):
+      pass
+   def updatePID(self,uuid,pid):
+      pass
 
 
 

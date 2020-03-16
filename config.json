@@ -41,7 +41,7 @@
     }
   ],
   "api_srv": {
-    "url": "http://cybexp1.acs.unr.edu:5000",
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYWNjZXNzIiwianRpIjoiZWFhNDUzOWEtZjE5Yy00OWFiLThjNjktZTc4MDJiYmY5MmVhIiwiaWRlbnRpdHkiOiJhZG1pbiIsImZyZXNoIjpmYWxzZSwiaWF0IjoxNTU3MzYzNjI2LCJuYmYiOjE1NTczNjM2MjZ9.PcKIqxjlPGZQGeCyOakjYeKPPaVQvPhFSbrwJzeDTWc"
+    "url": "http://localhost:5000",
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE1ODI3NDkxOTAsIm5iZiI6MTU4Mjc0OTE5MCwianRpIjoiZjEyOTQxNmItZGFiYS00ODQ2LWE4YTEtYWQ3ZmVhY2Y4MmVmIiwiaWRlbnRpdHkiOiJuYWNobyIsImZyZXNoIjpmYWxzZSwidHlwZSI6ImFjY2VzcyJ9.OWmSkb7DSUz9_rmH9Uu3EKUODUy_rvXZNM6zalmEuuE"
   }
 }
