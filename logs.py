@@ -1,6 +1,7 @@
 import logging 
 import logging.handlers
 import sys
+import json
 
 exformatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
@@ -51,11 +52,39 @@ def setup_file(loggerName="InputLogger",level=logging.INFO,formatter=exformatter
    fh.setFormatter(formatter)
    logger.addHandler(fh)
 
-def setup_email(loggerName="InputLogger",formatter=exformatter, level=logging.DEBUG,from_email='ignaciochg@gmail.com', to=['ignaciochg@nevada.unr.edu'], subject='Error found!',cred=('ignaciochg@gmail.com', 'qadytrsyudzkdidu')):
+def setup_email(server, port, loggerName="InputLogger",formatter=exformatter, level=logging.DEBUG,from_email='ignaciochg@gmail.com', to=['ignaciochg@nevada.unr.edu'], subject='Error found!',cred=('ignaciochg@gmail.com', 'qadytrsyudzkdidu')):
 
    logger = logging.getLogger(loggerName)
    # logger = logging.root
-   gm = TlsSMTPHandler(("smtp.gmail.com", 587), from_email, to,subject , cred)
+   if cred:
+      gm = TlsSMTPHandler((server, port), from_email, to, subject, cred)
+   else:
+      gm = TlsSMTPHandler((server, port), from_email, to, subject)
+   gm.setLevel(level)
+   gm.setFormatter(formatter)
+   logger.addHandler(gm)
+
+def setup_email(conf_file, loggerName="InputLogger",formatter=exformatter, level=logging.DEBUG, subject=None):
+   config
+   if "port" in config:
+      host = (config["server"], config["port"]) 
+   else:
+      host = config["server"]
+   if not subject:
+      subject = config["subject"]
+   if "username" in config and "password" in config:
+      cred = (config["username"], config["password"])
+   else:
+      cred = None
+
+
+   logger = logging.getLogger(loggerName)
+   # logger = logging.root
+   if cred:
+      gm = TlsSMTPHandler(host, config["from"], config["to"], subject, cred)
+   else:
+      gm = TlsSMTPHandler(host, config["from"], config["to"], subject)
+   
    gm.setLevel(level)
    gm.setFormatter(formatter)
    logger.addHandler(gm)

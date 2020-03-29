@@ -6,7 +6,8 @@ import signal
 import logging 
 import argparse
 from pathlib import Path
-
+import threading
+import importlib
 
 # local
 import database as db 
@@ -19,22 +20,16 @@ import logs
 # socketLocation = "/run/cybexp/inputs/"
 socketLocation = "/home/nacho/cybexp/inputs/"
 
-loggerName = ""
+loggerName = "PluginHandler"
 logfile = Path("/var/log/cybexp/input.log")
 
-
-
-
-
+# info https://pymotw.com/3/socket/uds.html
 
 
 # Exit codes 
 
 # BAD_PLUGIN_NAME = 2
 # BAD_CONFIG_NAME = 3
-
-
-
 
 
 
@@ -48,7 +43,21 @@ parser.add_argument('apiToken', type=str,
 parser.add_argument('config', type=str,
                     help='Configuration as json object, directly from DB. If invalid will return exit code BAD_CONFIG_NAME = 3')
 
+def signal_handler(signal,frame):
+    print("\nSignal {} recieved.".format(signal))
+    exit_handler()
 
+def exit_handler():
+    global runningPlugin, connection
+    try:
+        runningPlugin.signal_handler(signal.SIGTERM)
+    except:
+        pass
+    try:
+        connection.close()
+    except:
+        pass
+    sys.exit(0)
 
 
 def get_config_file(filename="../config.json"):
@@ -85,8 +94,6 @@ def run_input_plugin( URL, token, config):
 
     api_config = {'url': URL, 'token': token}
 
-    plugins_to_run = list(plugins_to_run)
-
     
     # print(list(configs))
     try:
@@ -122,8 +129,15 @@ def run_input_plugin( URL, token, config):
 
 
 
-# commands
 EXIT_COMMAND = -1
+
+def ordered(obj):
+    if isinstance(obj, dict):
+        return sorted((k, ordered(v)) for k, v in obj.items())
+    if isinstance(obj, list):
+        return sorted(ordered(x) for x in obj)
+    else:
+        return obj
 
 def commandHandler(data):
     global runningPlugin, args, pid
@@ -131,27 +145,34 @@ def commandHandler(data):
     response = ""
 
     if data == "exit":
-        runningPlugin.signal_handler(signal.SIGTERM)
+        try:
+            runningPlugin.signal_handler(signal.SIGTERM)
+        except:
+            pass
         return EXIT_COMMAND
     elif "help" in data:
         helpInfo = """Commands:
-close\t\t\tend this connection
-exit\t\t\tsend sigterm to plugin and exit
-restart\t\t\trestart plugin, will use new settings if avalable
-churl <new url>\t\tchange api url. restart required
-chtoken <new token>\tchange api token. restart required
-chconfig <new config>\tnew config to use
-getconfig\t\treturns config
-getpid\t\t\treturns pid
-getuuid\t\t\treturns uuid of plugin config
-verifyuuid <uuid>\treturns whether if input uuid is equal to the uuid of this current config
-sigterm\t\t\tsend sigterm to plugin and exit
+close\t\t\t\tend this connection
+exit\t\t\t\tsend sigterm to plugin and exit
+restart\t\t\t\trestart plugin, will use new settings if avalable
+churl <new url>\t\t\tchange api url. restart required
+chtoken <new token>\t\tchange api token. restart required
+chconfig <new config>\t\tnew config to use
+getconfig\t\t\treturns config
+getpid\t\t\t\treturns pid
+getuuid\t\t\t\treturns uuid of plugin config
+verifyuuid <uuid>\t\treturns whether if input uuid is equal to the uuid of this current config
+sigterm\t\t\t\tsend sigterm to plugin and exit
+verifyrunningconfig <config>\t\tcheck if config if running in this process
 help\t\t\tthis help menu
 
 """
         return helpInfo
     elif data == "restart":
-        runningPlugin.signal_handler(signal.SIGTERM)
+        try:
+            runningPlugin.signal_handler(signal.SIGTERM)
+        except NameError:
+            pass
         runningPlugin = run_input_plugin(args['apiURL'], args['apiToken'], args['config'])
         return "done\n"
 
@@ -161,59 +182,67 @@ help\t\t\tthis help menu
             args['apiToken'] = splitData[1]
             return "ok. New: {}\n".format(args['apiToken'])
         else:
-            return "error\n"
+            return "error1\n"
     elif "churl" in data:
         splitData = data.split(' ')
         if len(splitData) == 2:
             args['apiURL'] = splitData[1]
             return "ok. New: {}\n".format(args['apiURL'])
         else:
-            return "error\n"
+            return "error2\n"
     elif "chconfig" in data:
         splitData = data.split(' ', 1)
         if len(splitData) == 2:
             args['config'] = splitData[1]
             return "ok. New: {}\n".format(args['config'])
         else:
-            return "error\n"
+            return "error3\n"
     elif data == "getconfig":
         return args['config']+"\n"
     elif data == "getpid":
         return str(pid)+"\n"
     elif data == "getuuid":
         try:
-            return str(args['config']['uuid'])+"\n"
+            conf = json.loads(args["config"])
+            return str(conf['uuid'])+"\n"
         except:
-            return "error\n"
+            return "error4\n"
     elif "verifyuuid" in data:
+        splitData = data.split(' ', 1)
         if len(splitData) == 2:
             try:
-                isSame = str(args['config']['uuid']) == splitData[1]
+                uuidToCheck = splitData[1].strip()
+                a = json.loads(args["config"])
+                isSame = a['uuid'] == uuidToCheck
                 return str(isSame)+"\n"
             except:
-                return "error\n"
+                return "error5\n"
         else:
-            return "error\n"
+            return "error6\n"
     elif data == "sigterm":
-        runningPlugin.signal_handler(signal.SIGTERM)
+        try:
+            runningPlugin.signal_handler(signal.SIGTERM)
+        except NameError:
+            pass
         return EXIT_COMMAND
+    
+    elif "verifyrunningconfig" in data:
+        try:
+            splitted = data.split(' ',1)
+            configToCheck = splitted[1]
+            a = json.loads(args["config"])
+            b = json.loads(configToCheck)
+
+            if ordered(a) == ordered(b):
+                return "True\n"
+            else:
+                return "False\n"
+        except:
+            return "False\n"
     else:
         return "Not a command: {}\n".format(data)
 
     return response
-# commands
-# restart
-# change token 
-# change url
-# change config
-# get uuid 
-# get config
-# verify uuid # check if var equal this instance 
-# term
-# int
-# kill 
-# help
-# get pid 
 
 
 ####################################
@@ -244,7 +273,7 @@ logs.setup_file(loggerName,formatter=formatter,fileLoc=logfile)
 ####################################
 
 args = vars(parser.parse_args())
-print(args)
+# print(args)
 
 try:
     os.makedirs(socketLocation)
@@ -254,9 +283,9 @@ except FileExistsError:
         sys.exit(1)
 
 pid = str(os.getpid())
-pid = "test"
+# pid = "test"
 server_address = socketLocation+pid+".sock"
-print(pid,server_address)
+print(pid,server_address) # todo logger
 
 
 # Make sure the socket does not already exist
@@ -276,9 +305,15 @@ except:
     logger.critical("Failed to create UDS with config: {}. ".format(socketLocation,args['config']))
     sys.exit(1)
 
+
 ####################################
 ##### Initial Spawn of Plugin ######
 ####################################
+
+# signal handlers defined here because after the thread is spun up we need to manage it, 
+#  before this point we dont care if this process dies
+signal.signal(signal.SIGINT, signal_handler) # send signal to all threads
+signal.signal(signal.SIGTERM, signal_handler) # send signal to all threads
 
 runningPlugin = run_input_plugin(args['apiURL'], args['apiToken'], args['config'])
 
@@ -287,26 +322,23 @@ runningPlugin = run_input_plugin(args['apiURL'], args['apiToken'], args['config'
 ######       via UDS       #########
 ####################################
 
-
-sock.listen(1) # max of 1, sinve we are not multithreading
+sock.listen(1) # max of 1, since we are not multithreading this piece of code
 
 while True:
-
     connection, client_address = sock.accept()
     try:
-        print('connection from "{}"'.format(client_address))
-
-        # Receive the data in small chunks and retransmit it
         while True:
-            data = connection.recv(1024).decode().strip()
-            # print('received {!r}'.format(data))
+            data = connection.recv(1024)
+            if len(data) > 0: # also handles client disconnects (will return 0)
+                while "\n" not in data.decode():
+                    data = data + connection.recv(1024)
+            data = data.decode().strip()
             if data:
-                # print('sending data back to the client')
                 if data == "close":
                     break
                 else:
                     resp = commandHandler(data)
-                    print(resp)
+                    print("resp:",resp)
                     print(args, pid)
                     if resp == EXIT_COMMAND:
                         connection.close()
@@ -314,9 +346,9 @@ while True:
                     else:
                         connection.sendall(resp.encode())
             else:
-                # print('no data from', client_address)
-                break
-
+                break # close it
+    except KeyboardInterrupt:
+        exit_handler()
     finally:
         connection.close()
 
@@ -327,6 +359,5 @@ while True:
 
 
 # TODO 
-# add signal handler
-# make config into json object 
-
+# make config into json object before using 
+# add logging, configure for me and thread

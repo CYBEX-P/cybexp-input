@@ -13,9 +13,15 @@ import uuid
 #    return sha_signature
 
 
+DEFAULT_MONGO = "mongodb://192.168.1.101:30001,192.168.1.101:30002,192.168.1.101:30003/?replicaSet=rs0"
+
 class InputDB():
-   def __init__(self, URL="mongodb://localhost:27017", DBName="InputDB", configColl="configs",
-                  pluginConfCol="plugin_configs", logger=logging.getLogger("InputDBLogger")):
+   def __init__(self, URL=DEFAULT_MONGO, DBName="InputDB",
+                  configColl="configs",
+                  pluginConfCol="plugin_configs",
+                  pluginInstanceCol="plugin_instance",
+                  logger=logging.getLogger("InputDBLogger")):
+
       self.client = pymongo.MongoClient(URL)
       self.db = self.client[DBName]
       self.confCol = self.db[configColl]
@@ -27,42 +33,44 @@ class InputDB():
       self.pluginsCol.create_index("input_plugin_name", unique=True)
       self.pluginsCol.create_index("enabled")
 
+      self.pInstanceCol = self.db[pluginInstanceCol]
+      self.pInstanceCol.create_index("uuid", unique=True)
+
 
       self.logger = logger
 
    def insert_config(self, human_name,input_plugin_name, archive_processing_typetag,
-                     orgid, plugin_type="scheduled",
+                     orgid, #plugin_type="scheduled",
                      timezone="UTC",enabled=False, **kwargs):
       args = locals()
       args.pop("self")
       args_kw = args.pop("kwargs")
       args.update(args_kw)
-
-      # todo make this into function, check everywhere
-      if plugin_type == "scheduled":
-         if "seconds_between_fetches" not in args:
-            return False
-      elif plugin_type == "service":
-         pass
-      elif plugin_type == "manual_sync":
-         pass
-      else:
-         return False
+      print("test2")
+      # # todo make this into function, check everywhere
+      # if plugin_type == "scheduled":
+      #    if "seconds_between_fetches" not in args:
+      #       return False
+      # elif plugin_type == "service":
+      #    pass
+      # elif plugin_type == "manual_sync":
+      #    pass
+      # else:
+      #    return False
 
       try:
          pluginName = "plugin.{}".format(input_plugin_name)
          plugin = importlib.import_module(pluginName)
          check = plugin.inputCheck(args)
          del plugin
+         # print("check:",check)
          if not check:
             return False
       except ModuleNotFoundError:
          self.logger.info("Failed to import module")
          return False
+      # print("test3")
 
-      # check = plugins.get(plugin).check(args)
-      # if not check:
-      #    return False
       config = { "human_name": human_name, 
                   "input_plugin_name":  input_plugin_name,
                   "archive_processing_typetag":  archive_processing_typetag,
@@ -72,12 +80,13 @@ class InputDB():
       }
       # config.update(kwargs)
       # print(config)
-      args["uuid"] = uuid.uuid() #hash_string(str(args))
+      args["uuid"] = str(uuid.uuid4()) #hash_string(str(args))
       args["enabled"] = enabled
       try:
+         # print(args)
          x = self.confCol.insert_one(args)
       except pymongo.errors.DuplicateKeyError:
-         print("duplicate key")
+         # print("duplicate key")
          return False
       # print(x)
       return args["uuid"] #x.inserted_id
@@ -95,15 +104,21 @@ class InputDB():
             return
       for entry in data:
          r = self.insert_config(**entry)
-         print(r)
+         # print(r)
 
    def update_one(self,coll, query, update:dict):
-      if coll == self.confCol: # if a config item rehash
+      if coll == self.confCol: 
          config_type = True
-         print("its a config")
+         # print("its a config")
+      elif coll == self.confCol: 
+         module_type = True
+         # print("its a config")
       else:
-         print("its a pluginconfig")
-         config_type = False      
+         # print("its not config type")
+         config_type = False 
+         module_type = False
+
+     
       # query = { "hash": conf_hash }
       if len(query) > 1: # only one key allowed
          return False
@@ -117,38 +132,41 @@ class InputDB():
       record.update(update)
       # print("new record:\t",record)
 
-      if "enabled" not in record:
-         record["enabled"] = False
+      
 
-      enabled = record.pop("enabled")
+      if config_type or module_type:
+         if "enabled" not in record:
+            record["enabled"] = False
+
+         enabled = record.pop("enabled")
 
 
-      record["enabled"] = enabled
-      print("record:\t\t",record)
+         record["enabled"] = enabled
+         # print("record:\t\t",record)
 
+         try:
+            input_plugin_name = record["input_plugin_name"]
+            pluginName = "plugin.{}".format(input_plugin_name)
+            # print(pluginName)
+            plugin = importlib.import_module(pluginName)
+            if config_type: # only check if we are updating a plugin configuration
+               check = plugin.inputCheck(record)
+               if not check:
+                  return False
+            del plugin
 
-      try:
-         input_plugin_name = record["input_plugin_name"]
-         pluginName = "plugin.{}".format(input_plugin_name)
-         # print(pluginName)
-         plugin = importlib.import_module(pluginName)
-         if config_type: # only check if we are updating a plugin configuration
-            check = plugin.inputCheck(record)
-            if not check:
-               return False
-         del plugin
-
-      except ModuleNotFoundError:
-         print("Failed to import module")
-         # print("Unexpected error:", sys.exc_info()[0])
-         return False
+         except ModuleNotFoundError:
+            # print("Failed to import module")
+            # print("Unexpected error:", sys.exc_info()[0])
+            # TODO logger 
+            return False
 
       newvalues = { "$set": record }
       try:
          coll.update_one(query, newvalues)
          return True
       except pymongo.errors.DuplicateKeyError:
-         print("New or modified record already exists. cant modify")
+         # print("New or modified record already exists. cant modify")
          return False
 
    def update_config(self,conf_uuid, update:dict):
@@ -182,7 +200,7 @@ class InputDB():
       try:
          x = self.pluginsCol.insert_one(record)
       except pymongo.errors.DuplicateKeyError:
-         print("duplicate key")
+         # print("duplicate key")
          return False
       # print(x)
       return x.inserted_id
@@ -214,93 +232,115 @@ class InputDB():
       valid = self.getValidPlugins()
 
       temp.append({"input_plugin_name": { "$in": valid}})
+      temp.append({"enabled": True})
       temp.append(query)
       masterQ = { "$and": temp }
 
       return self.getConfig(masterQ, select)
 
 
-   def notifyStream(self, resume = False):
-      if resume and self.resumeToken:
-         self.changeStreamCursor = self.confCol.watch([], {
-         resumeAfter: resumeToken,
-         # fullDocument: "updateLookup"
-        })
-        # print("\r\nResuming change stream with token " + JSON.stringify(resumeToken) + "\r\n");
-        # resumeStream(newChangeStreamCursor)
-      # self.changeStreamCursor.close()
-      while not self.changeStreamCursor.isExhausted():
-         if self.changeStreamCursor.hasNext():
-            change = self.changeStreamCursor.next()
-            print(change)
-            self.resumeToken = change._id
-            
-               
-         
-       
 
 
+   def changeHandler(self, funcChangehandler, **kwargs):
+      resume_token = None
+      critical = False
+      while not critical:
+         try:
+            # pipeline = [{'$match': {'operationType': 'insert'}},
+            # {'$match': {
+            #         'operationType': {'$in': ['insert', 'replace']}
+            #     }},
+            #     {'$match': {
+            #         'newDocument.n': {'$gte': 1}
+            #     }}]
+            if resume_token:
+               with self.confCol.watch(full_document="updateLookup",
+                   resume_after=resume_token) as stream:
+                  for change in stream:
+                     funcChangehandler(change)
+            else:
+               with self.confCol.watch(full_document="updateLookup") as stream:
+                  for change in stream:
+                     # print(change)
+                     # print(change["fullDocument"])
+                     allowed_ops = ['insert', 'delete', 'replace', 'update' ]
+                     if change["operationType"] in allowed_ops:
+                        funcChangehandler(change, **kwargs)
+                        
+                     resume_token = stream.resume_token
 
+         except pymongo.errors.PyMongoError:
+            print("pymongo error")
+             # The ChangeStream encountered an unrecoverable error or the
+             # resume attempt failed to recreate the cursor.
+            if resume_token is None:
+                 # There is no usable resume token because there was a
+                 # failure during ChangeStream initialization.
+               logging.critical('...')
+               critical = True
+            else:
+               pass
+                 # Use the interrupted ChangeStream's resume token to create
+                 # a new ChangeStream. The new stream will continue from the
+                 # last seen insert change without missing any events.
 
-   def notifyChanges(self):
-   # https://www.mongodb.com/blog/post/an-introduction-to-change-streams
-   # https://docs.mongodb.com/manual/tutorial/deploy-replica-set/
-   # https://docs.mongodb.com/manual/reference/method/db.collection.watch/#db.collection.watch
-   # https://docs.mongodb.com/manual/changeStreams/#open-a-change-stream # main info 
-   # 
-      # print("hi")
-      self.changeStreamCursor = self.confCol.watch()
-   #    # try:
-   #    self.notifyStream()
-   # # except:
-      # self.notifyStream(True)
+# DEFAULT_MONGO = "mongodb://192.168.1.101:30001,192.168.1.101:30002,192.168.1.101:30003/?replicaSet=rs0"
 
-   # function resumeStream(changeStreamCursor, forceResume = false) {
-   #   let resumeToken;
-   #   while (!changeStreamCursor.isExhausted()) {
-   #     if (changeStreamCursor.hasNext()) {
-   #       change = changeStreamCursor.next();
-   #       print(JSON.stringify(change));
-   #       resumeToken = change._id;
-   #       if (forceResume === true) {
-   #         print("\r\nSimulating app failure for 10 seconds...");
-   #         sleepFor(10000);
-   #         changeStreamCursor.close();
-   #         const newChangeStreamCursor = collection.watch([], {
-   #           resumeAfter: resumeToken
-   #         });
-   #         print("\r\nResuming change stream with token " + JSON.stringify(resumeToken) + "\r\n");
-   #         resumeStream(newChangeStreamCursor);
-   #       }
-   #     }
-   #   }
-   #   resumeStream(changeStreamCursor, forceResume);
-   # }
+# client = pymongo.MongoClient(DEFAULT_MONGO)
+# db = client["InputDB"]
+# confCol = db["configs"]
+
+# change_stream = confCol.watch()
+# for change in change_stream:
+#     print(change)
+#     # print(json.dumps(change))
+#     print('') # for readability only
+
 
 
 
 # thre will be a new colloectin, so the watch stream wont trigger when chanign these
-   def createPID(self,uuid, pid):
-      pass
-   def getPID(self,uuid):
-      pass
-   def updatePID(self,uuid,pid):
-      pass
+   def createPID(self, conf_uuid:str, pid:int):
+      data = {"uuid":conf_uuid, "pid": pid}
+      try:
+         x = self.pInstanceCol.insert_one(data)
+      except pymongo.errors.DuplicateKeyError:
+         print("duplicate key")
+         return False
+      return x.inserted_id
 
+   def getPID(self,conf_uuid:str):
+      query={"uuid":conf_uuid}
+      select={ "_id": 0 }
+      record = self.pInstanceCol.find_one(query,select)
+      if record:
+         return record["pid"]
+      else:
+         return 0
+   def updatePID(self,conf_uuid:str, pid:int):
+      return self.update_one(self.pInstanceCol, {"uuid": conf_uuid}, {"pid": pid})
+
+   def setPID(self, conf_uuid:str, pid:int):
+      if self.getPID(conf_uuid):
+         return self.updatePID(conf_uuid, pid)
+      else:
+         return self.createPID(conf_uuid, pid)
 
 
 if __name__ == "__main__":
    a = InputDB()
-   a.notifyChanges()
-
-   # a.insert_config(**{ "human_name": "abc1", 
-   #                   "input_plugin_name": "phishtank" ,
-   #                   "archive_processing_typetag": "processing1" ,
-   #                   "timezone": "UTC" ,
-   #                   "orgid": "random stuff" ,
-   #                   "testtag1": "Highway 1" ,
-   #                   "testtag2": "Highway 2" ,
-   #                })
+   # a.notifyChanges()
+   print("test")
+   a.insert_config(**{ "human_name": "abc1", 
+                     "input_plugin_name": "phishtank" ,
+                     "archive_processing_typetag": "processing1" ,
+                     "timezone": "UTC" ,
+                     "orgid": "random stuff" ,
+                     "enabled": True,
+                     "testtag1": "Highway 1" ,
+                     "testtag2": "Highway 2" ,
+                     'seconds_between_fetches': 5
+                  })
 
    # a.import_bulk_config("config2.json")
    # h = "70453c868caa749141b461a28feca64d41363e46ff97cf6a7f9b916ac83c8ad725459f725b597a1f198849072289c8e18281e058a7f64e45d9110e3b92b3923e"
@@ -337,7 +377,7 @@ if __name__ == "__main__":
    # for item in a.getAll():
    #    print(item)
    # ab = a.addPlugin("amazing name","test",True)
-   # ac = a.addPlugin("amazing 2","phishtank",True)
+   ac = a.addPlugin("amazing 2","phishtank",True)
    # ad = a.addPlugin("amazing 3","misp_file",False)
 
    # print(ab,ac,ad)
@@ -347,3 +387,7 @@ if __name__ == "__main__":
    # print(cc)
 
    pass
+
+
+# TODO 
+# replace print for logging 
