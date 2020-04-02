@@ -44,7 +44,7 @@ def setLoggerLevel(loggerName="InputLogger",level=logging.DEBUG):
    logger.setLevel(level)
 
 
-def setup_file(loggerName="InputLogger",level=logging.INFO,formatter=exformatter,fileLoc='archive.log'):
+def setup_file(loggerName="InputLogger",level=logging.INFO,formatter=exformatter,fileLoc:str='archive.log'):
    logger = logging.getLogger(loggerName)
    # logger = logging.root
    fh = logging.FileHandler(fileLoc)
@@ -65,7 +65,13 @@ def setup_email(server, port, loggerName="InputLogger",formatter=exformatter, le
    logger.addHandler(gm)
 
 def setup_email(conf_file, loggerName="InputLogger",formatter=exformatter, level=logging.DEBUG, subject=None):
-   config
+   with open(filename) as f:
+      try:
+         config = json.load(f)
+      except json.decoder.JSONDecodeError:
+         print("Bad email config file {}. Exiting...".format(filename))
+         sys.exit(1)
+   
    if "port" in config:
       host = (config["server"], config["port"]) 
    else:

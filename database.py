@@ -7,6 +7,7 @@ import logging
 #import hashlib
 import sys
 import uuid
+import threading
 
 # def hash_string(hash_string): # TODO, make deterministic
 #    sha_signature = hashlib.sha512(hash_string.encode()).hexdigest()
@@ -46,7 +47,7 @@ class InputDB():
       args.pop("self")
       args_kw = args.pop("kwargs")
       args.update(args_kw)
-      print("test2")
+      # print("test2")
       # # todo make this into function, check everywhere
       # if plugin_type == "scheduled":
       #    if "seconds_between_fetches" not in args:
@@ -156,9 +157,11 @@ class InputDB():
             del plugin
 
          except ModuleNotFoundError:
-            # print("Failed to import module")
+            if pluginName:
+               self.logger.warning("Failed to import module {}".format(pluginName))
+            else:
+               self.logger.warning("Failed to import module. conf: {}".format(json.dumps(record)))
             # print("Unexpected error:", sys.exc_info()[0])
-            # TODO logger 
             return False
 
       newvalues = { "$set": record }
@@ -241,10 +244,9 @@ class InputDB():
 
 
 
-   def changeHandler(self, funcChangehandler, **kwargs):
+   def changeHandler(self, funcChangehandler, exitEvent:threading.Event = threading.Event(), **kwargs):
       resume_token = None
-      critical = False
-      while not critical:
+      while not exitEvent.isSet():
          try:
             # pipeline = [{'$match': {'operationType': 'insert'}},
             # {'$match': {
@@ -270,19 +272,14 @@ class InputDB():
                      resume_token = stream.resume_token
 
          except pymongo.errors.PyMongoError:
-            print("pymongo error")
-             # The ChangeStream encountered an unrecoverable error or the
-             # resume attempt failed to recreate the cursor.
+            self.logger.warning("Pymongo error or lost DB connection")
             if resume_token is None:
-                 # There is no usable resume token because there was a
-                 # failure during ChangeStream initialization.
-               logging.critical('...')
-               critical = True
+               self.logger.critical("Could not stablish a resume token, can't resume.")
+               exitEvent.set()
             else:
                pass
-                 # Use the interrupted ChangeStream's resume token to create
-                 # a new ChangeStream. The new stream will continue from the
-                 # last seen insert change without missing any events.
+                 # normally we would create a new watch() but we do that in the loop, nothing to do here
+
 
 # DEFAULT_MONGO = "mongodb://192.168.1.101:30001,192.168.1.101:30002,192.168.1.101:30003/?replicaSet=rs0"
 
@@ -305,7 +302,7 @@ class InputDB():
       try:
          x = self.pInstanceCol.insert_one(data)
       except pymongo.errors.DuplicateKeyError:
-         print("duplicate key")
+         # print("duplicate key")
          return False
       return x.inserted_id
 
@@ -330,7 +327,7 @@ class InputDB():
 if __name__ == "__main__":
    a = InputDB()
    # a.notifyChanges()
-   print("test")
+   # print("test")
    a.insert_config(**{ "human_name": "abc1", 
                      "input_plugin_name": "phishtank" ,
                      "archive_processing_typetag": "processing1" ,
@@ -389,5 +386,3 @@ if __name__ == "__main__":
    pass
 
 
-# TODO 
-# replace print for logging 

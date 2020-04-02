@@ -1,0 +1,11 @@
+[
+  {
+    "input_plugin_name": "phishtank",
+    "human_name": "phishtank.com",
+    "archive_processing_typetag": "phishtank-api",
+    "phishtank_api_key": "ec693941646a6236b9c79474b8e17e52dd6ce9d242049bc242f12ecbfe85a86e",
+    "timezone": "UTC",
+    "orgid": "80093a09-afb6-47c1-8566-344c9e605c8b",
+    "seconds_between_fetches": 43200
+  }
+]

@@ -17,11 +17,11 @@ import logs
 
 
 # variables 
-# socketLocation = "/run/cybexp/inputs/"
-socketLocation = "/home/nacho/cybexp/inputs/"
+socketLocation = Path("/run/cybexp/inputs/")
+# socketLocation = Path("/home/nacho/cybexp/inputs/")
 
 loggerName = "PluginHandler"
-logfile = Path("/var/log/cybexp/input.log")
+logfile = Path("/var/log/cybexp/plugin.log")
 
 # info https://pymotw.com/3/socket/uds.html
 
@@ -32,7 +32,8 @@ logfile = Path("/var/log/cybexp/input.log")
 # BAD_CONFIG_NAME = 3
 
 
-
+#gobal var
+DRY_RUN = False
 
 parser = argparse.ArgumentParser(description='Executes input plugin.')
 
@@ -42,9 +43,29 @@ parser.add_argument('apiToken', type=str,
                     help='Token to authenticate with the api.')
 parser.add_argument('config', type=str,
                     help='Configuration as json object, directly from DB. If invalid will return exit code BAD_CONFIG_NAME = 3')
+parser.add_argument(
+    '-s',
+    '--socket-path',
+    help="Location to search and spawn UDS. [{}]".format(socketLocation),
+    default=str(socketLocation))
+parser.add_argument(
+    "-d",
+    "--dry-run",
+    help="enable dry run mode. configuration will not be executed.",
+    action='store_true',
+    default=False
+    )
+parser.add_argument(
+    '-l',
+    '--log-file',
+    help="File to store plugin manager's logs. [{}]".format(logfile),
+    default=str(logfile))
 
 def signal_handler(signal,frame):
-    print("\nSignal {} recieved.".format(signal))
+    global loggerName
+
+    logger = logging.getLogger(loggerName)
+    logger.debug("Signal {} recieved.".format(signal))
     exit_handler()
 
 def exit_handler():
@@ -89,43 +110,49 @@ def get_config_file(filename="../config.json"):
 
 
 
-def run_input_plugin( URL, token, config):
+def run_input_plugin( URL:str, token:str, config:str):
+    global DRY_RUN, loggerName
+
     logger = logging.getLogger(loggerName)
 
     api_config = {'url': URL, 'token': token}
 
     
     # print(list(configs))
-    try:
-        config = json.loads(config)
-        input_plugin_name = config["input_plugin_name"]
-    except json.decoder.JSONDecodeError:
-        logger.critical("Can not initiate plugin with bad configuration: {}".format(config))
-        sys.exit(1)
-    try:
-        pluginName = "plugin.{}".format(input_plugin_name)
-        myplugin = importlib.import_module(pluginName)
-        check = myplugin.inputCheck(config)
-        if not check:
-            logger.critical("{} failed input check. This should NOT happen".format(pluginName))
+    if not DRY_RUN:
+        try:
+            config = json.loads(config)
+            input_plugin_name = config["input_plugin_name"]
+        except json.decoder.JSONDecodeError:
+            logger.critical("Can not initiate plugin with bad configuration: {}".format(config))
+            sys.exit(1)
+        try:
+            pluginName = "plugin.{}".format(input_plugin_name)
+            myplugin = importlib.import_module(pluginName)
+            check = myplugin.inputCheck(config)
+            if not check:
+                logger.critical("{} failed input check. This should NOT happen".format(pluginName))
+                sys.exit(1)
+
+        except ModuleNotFoundError:
+            logger.critical("Failed to import module, {}.".format(pluginName))
             sys.exit(1)
 
-    except ModuleNotFoundError:
-        logger.critical("Failed to import module, {}.".format(pluginName))
-        sys.exit(1)
+        try:
+            # run the plugin 
+            runningPlugin = plugin.common.CybexSourceFetcher(
+                myplugin.InputPlugin(api_config, config, loggername=loggerName),
+                loggername=loggerName
+            )
+            if not DRY_RUN:
+                runningPlugin.start()
+            return runningPlugin
+        except:
+            logger.error("Fail to run thread({}).".format(input_plugin_name))
+            sys.exit(1)
 
-    try:
-        # run the plugin 
-        runningPlugin = plugin.common.CybexSourceFetcher(
-            myplugin.InputPlugin(api_config, config)
-        )
-        runningPlugin.start()
-        return runningPlugin
-    except:
-        logger.error("Fail to run thread({}).".format(input_plugin_name))
-        sys.exit(1)
-
-
+    else:
+        return None
 
 
 
@@ -249,6 +276,12 @@ help\t\t\tthis help menu
 ####### Initializing Logger ########
 ####################################
 
+args = vars(parser.parse_args()) # required step to edit this
+# print(args)
+
+logfile = Path(args.log_file).resolve()
+pid = str(os.getpid())
+loggerName = loggerName+str(pid)
 
 logfile.parent.mkdir(parents=True, exist_ok=True, mode=0o600)
 logfile.touch(exist_ok=True, mode=0o666)
@@ -258,7 +291,7 @@ formatter = logs.exformatter
 
 logs.setLoggerLevel(loggerName,logging.DEBUG)
 logs.setup_stdout(loggerName,formatter=formatter)
-logs.setup_file(loggerName,formatter=formatter,fileLoc=logfile)
+logs.setup_file(loggerName,formatter=formatter,fileLoc=str(logfile))
 # logs.setup_email(loggerName,formatter=formatter,
 #     from_email='ignaciochg@gmail.com',
 #     to=['ignaciochg@nevada.unr.edu'],
@@ -272,20 +305,22 @@ logs.setup_file(loggerName,formatter=formatter,fileLoc=logfile)
 ###### Initial Checks & Inits ######
 ####################################
 
-args = vars(parser.parse_args())
-# print(args)
 
-try:
-    os.makedirs(socketLocation)
-except FileExistsError:
-    if not os.path.isdir(socketLocation):
-        logger.critical("Failed to create directoty {}, therefore can't create UDS. Will not start configuration {}".format(socketLocation,args['config']))
-        sys.exit(1)
+DRY_RUN = args["dry_run"]
 
-pid = str(os.getpid())
+socketLocation = Path(args["socket_path"]).resolve()
+socketLocation.mkdir(parents=True, exist_ok=True, mode=0o750)
+
+if not socketLocation.is_dir():
+        logger.critical("{} not a direactory or failed to create it, therefore can't create UDS. Will not start configuration {}".format(socketLocation,args['config']))
+        parser.error("{} is not a direactory".format(socketLocation))
+
+
+
 # pid = "test"
-server_address = socketLocation+pid+".sock"
-print(pid,server_address) # todo logger
+server_address = str(socketLocation / "{}.sock".format(pid))
+logger.infor("New plugin, PID: {}, Loc: {}".format(pid,server_address))
+
 
 
 # Make sure the socket does not already exist
@@ -338,8 +373,8 @@ while True:
                     break
                 else:
                     resp = commandHandler(data)
-                    print("resp:",resp)
-                    print(args, pid)
+                    logger.debug("resp: {}".format(resp))
+                    logger.debug("{} {}".format(args, pid))
                     if resp == EXIT_COMMAND:
                         connection.close()
                         sys.exit(0)
@@ -354,10 +389,3 @@ while True:
 
 
 
-
-
-
-
-# TODO 
-# make config into json object before using 
-# add logging, configure for me and thread
