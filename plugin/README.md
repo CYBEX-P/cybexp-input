@@ -16,3 +16,8 @@ use `self.exit_signal.is_set()` to check whether is you are reesueted to end as 
 `CybexSource.exit()`  will request to exit after data is process. Will set `self.backoffExit`.   
 
 `CybexSource.exit_NOW()`  will request to exit ASAP. Will set `self.exit_signal`.   
+
+
+# Logging
+If `loggername` is passed to the super `CybexSource` class then it will place said logger under `self.logger`. So if you want to log information do it with `self.logger`.   
+`loggername` is the name of the logger to use, it does not need to be initialized. But if you preffer you can inialize the logger outside and then just pass in the name to the plugging for it to use it. 

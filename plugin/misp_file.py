@@ -6,9 +6,9 @@ def inputCheck(args): # TODO replace with JSON schema validation
     return check_a # and ...
 
 class InputPlugin(CybexSource):
-    def __init__(self, api_config, input_config):
+    def __init__(self, api_config, input_config, loggername):
         self.filename = input_config.pop("directory")
-        super().__init__(api_config, input_config)
+        super().__init__(api_config, input_config, loggername)
 
     def __str__(self):
         return "MISP File input, orgid = {}, typtag = {}, timezone = {}, url = {}".format(
@@ -21,7 +21,7 @@ class InputPlugin(CybexSource):
         for event in j["response"]:
             rr = self.post_event_to_cybex_api(event)
             [
-                logging.exception(str(r.status_code) + " " + r.reason)
+                self.logger.exception(str(r.status_code) + " " + r.reason)
                 for r in rr
                 if not r.ok
             ]

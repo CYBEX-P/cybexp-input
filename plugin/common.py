@@ -35,8 +35,8 @@ def exponential_backoff(n, threadEvent=None, name=None):
 class CybexSource:
     timezone = "UTC"
 
-    def __init__(self, api_config, input_config):
-        self.logger = logging.getLogger(loggerName)
+    def __init__(self, api_config, input_config, loggername:str = loggerName):
+        self.logger = logging.getLogger(loggername)
         self.exit_signal = threading.Event()
         self.backoffExit = threading.Event()
 
@@ -140,11 +140,11 @@ class CybexSource:
 class CybexSourceFetcher(threading.Thread):
     seconds_between_fetches = 10
 
-    def __init__(self, cybex_source: CybexSource):
+    def __init__(self, cybex_source: CybexSource, loggername:str = loggerName):
         super().__init__()
         self.exit_signal = threading.Event()
         self.backoffExit = threading.Event()
-        self.logger = logging.getLogger(loggerName)
+        self.logger = logging.getLogger(loggername)
 
         self.source = cybex_source
         self.source_name = cybex_source.input_plugin_name
@@ -208,30 +208,30 @@ class CybexSourceFetcher(threading.Thread):
         self.exit_signal.set()
         self.backoffExit.set()
         self.source.exit()
-        print("backoff exit:",self.backoffExit.is_set())
-        print("exit:",self.exit_signal.is_set())
+        # print("backoff exit:",self.backoffExit.is_set())
+        # print("exit:",self.exit_signal.is_set())
     def exit_NOW(self):
         self.logger.info("{}-- Handling exit.".format(self.source_name))
         self.exit_signal.set()
         self.backoffExit.set()
         self.source.exit_NOW()
-        print("backoff exit:",self.backoffExit.is_set())
-        print("exit:",self.exit_signal.is_set())
+        # print("backoff exit:",self.backoffExit.is_set())
+        # print("exit:",self.exit_signal.is_set())
 
     def signal_handler(self,sig):
-        print("##### start ##########")
-        print(sig)
+        # print("##### start ##########")
+        # print(sig)
         if sig == signal.SIGTERM:
-            print("will do")
+            # print("will do")
             self.exit()
         if sig == signal.SIGINT:
             self.exit()
         if sig == signal.SIGKILL:
-            print("OK i will kill myself")
+            # print("OK i will kill myself")
             self.exit_NOW()
         else:
             self.exit()
-        print("#####  end  ##########")
+        # print("#####  end  ##########")
 
 
 

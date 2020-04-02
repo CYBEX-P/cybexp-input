@@ -15,8 +15,11 @@ def inputCheck(args):
 
 
 class InputPlugin(CybexSource):
+    def __init__(self, api_config, input_config, loggername):
+        super().__init__(api_config, input_config, loggername)
+
     def fetch_and_post(self):
-        logging.info(f"Retrieving events from Phishtank at {URL}")
+        self.logger.info(f"Retrieving events from Phishtank at {URL}")
         response = requests.get(
             f"{URL}/{self.phishtank_api_key}/online-valid.json{COMPRESS_ALGO}"
         )
@@ -24,7 +27,7 @@ class InputPlugin(CybexSource):
         if "exceeded the request rate limit" in response.text:
             return
         if COMPRESS_ALGO:
-            logging.info(
+            self.logger.info(
                 f"Decompressing API response from Phishtank with {COMPRESS_ALGO}"
             )
             print(response.content)
@@ -33,5 +36,5 @@ class InputPlugin(CybexSource):
             text = response.text
 
         events = json.loads(text)
-        logging.info(f"Retrieved {len(events)} records from PhishTank.")
+        self.logger.info(f"Retrieved {len(events)} records from PhishTank.")
         self.post_event_to_cybex_api(events)

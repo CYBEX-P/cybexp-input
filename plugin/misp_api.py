@@ -10,8 +10,8 @@ def inputCheck(args):
     return check_a and check_b # and ....
 
 class InputPlugin(CybexSource):
-    def __init__(self, api_config, input_config):
-        super().__init__(api_config, input_config)
+    def __init__(self, api_config, input_config, loggername):
+        super().__init__(api_config, input_config, loggername)
         self.misp_orgs = input_config["orgs"]
 
     def fetch_and_post(self):
@@ -28,7 +28,7 @@ class InputPlugin(CybexSource):
             r = misp.direct_call(relative_path, body)
 
             if "errors" in r.keys():
-                logging.error(
+                self.logger.error(
                     "api.input.misp.MISPServerSource.fetch -- \n" + json.dumps(r, indent=4)
                 )
             elif "response" in r.keys():
@@ -36,6 +36,6 @@ class InputPlugin(CybexSource):
 
                 self.post_event_to_cybex_api(r["response"])
             else:
-                logging.error(
+                self.logger.error(
                     "api.input.misp.MISPServerSource.fetch -- \n" + json.dumps(r, indent=4)
                 )
