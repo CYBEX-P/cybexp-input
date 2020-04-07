@@ -64,12 +64,12 @@ def setup_email(server, port, loggerName="InputLogger",formatter=exformatter, le
    gm.setFormatter(formatter)
    logger.addHandler(gm)
 
-def setup_email(conf_file, loggerName="InputLogger",formatter=exformatter, level=logging.DEBUG, subject=None):
-   with open(filename) as f:
+def setup_email_from_file(conf_file, loggerName="InputLogger",formatter=exformatter, level=logging.DEBUG, subject=None):
+   with open(conf_file) as f:
       try:
          config = json.load(f)
       except json.decoder.JSONDecodeError:
-         print("Bad email config file {}. Exiting...".format(filename))
+         print("Bad email config file {}. Exiting...".format(conf_file))
          sys.exit(1)
    
    if "port" in config:
@@ -104,12 +104,14 @@ def setup_stdout(loggerName="InputLogger",level=logging.DEBUG,formatter=exformat
    logger.addHandler(stdouth)
 
 if __name__ == "__main__":
+   logger = logging.getLogger("test")
+
    setLoggerLevel()
    setup_stdout(formatter=exformatter)
    setup_file(formatter=exformatter)
    setup_email(formatter=exformatter)
-   # logger.debug('debug message')
-   # logger.info('info message')
-   # logger.warning('warn message')
-   # logger.error('error message')
-   # logger.critical('critical message')
+   logger.debug('debug message')
+   logger.info('info message')
+   logger.warning('warn message')
+   logger.error('error message')
+   logger.critical('critical message')

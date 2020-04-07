@@ -33,7 +33,7 @@ loggerName = "PluginManager"
 # pluginlogfile = Path("/var/log/cybexp/plugin.log")
 
 # production default locations
-socketLocation = "/run/cybexp/inputs/"
+socketLocation = Path("/run/cybexp/inputs/")
 logfile = Path("/var/log/cybexp/inputManager.log")
 pluginlogfile = Path("/var/log/cybexp/plugin.log")
 
@@ -235,8 +235,10 @@ def spawnConfig(apiURL:str,apiToken:str,config_str:str, inputDB=None): # call ru
         except:
             return False
 
+    # using sys.executable to keep the virtual environment. {env}/bin/python3 uses the virtenv. else child vont use it
+    command = [sys.executable, "PluginHandler.py", "-s", str(socketLocation) , apiURL, apiToken, config_str]
 
-    command = ['python3', "PluginHandler.py", "-s", str(socketLocation) , apiURL, apiToken, config_str]
+    # command = ['python3', "PluginHandler.py", "-s", str(socketLocation) , apiURL, apiToken, config_str]
     # print(command)
     process = subprocess.Popen(command)#, stdout=subprocess.STDOUT, stderr=subprocess.STDOUT)
     # process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -558,7 +560,6 @@ if __name__ == "__main__":
 
     if args.remove_stale_sockets:
         removeStaleSockets()
-        sys.exit(0)
     logger.info(f"Running the following plugins: {args.plugins}")
 
     signal.signal(signal.SIGINT, signal_handler) # kill manager
@@ -585,6 +586,7 @@ if __name__ == "__main__":
         exitEvent = threading.Event()
         inputDB.changeHandler(handleChange,exitEvent, api_config_file=args.api_config_file, inputDB=inputDB)
 
+    sys.exit(0)
 # DEFAULT_MONGO = "mongodb://192.168.1.101:30001,192.168.1.101:30002,192.168.1.101:30003/?replicaSet=rs0"
 
 # client = pymongo.MongoClient(DEFAULT_MONGO)
