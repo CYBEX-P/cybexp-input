@@ -225,7 +225,7 @@ def updateSockConfig(sockLocation:str, config:str):
          return False
 
 def spawnConfig(apiURL:str,apiToken:str,config_str:str, inputDB=None): # call runOrUpdateConfig(), handles all cases
-    global socketLocation
+    global socketLocation, pluginlogfile
 
     if inputDB:
         try:
@@ -236,7 +236,7 @@ def spawnConfig(apiURL:str,apiToken:str,config_str:str, inputDB=None): # call ru
             return False
 
     # using sys.executable to keep the virtual environment. {env}/bin/python3 uses the virtenv. else child vont use it
-    command = [sys.executable, "PluginHandler.py", "-s", str(socketLocation) , apiURL, apiToken, config_str]
+    command = [sys.executable, "PluginHandler.py", "--log-file", str(pluginlogfile), "-s", str(socketLocation) , apiURL, apiToken, config_str]
 
     # command = ['python3', "PluginHandler.py", "-s", str(socketLocation) , apiURL, apiToken, config_str]
     # print(command)
@@ -519,7 +519,7 @@ if __name__ == "__main__":
         default=str(pluginlogfile))
     parser.add_argument(
         '--email-config',
-        help="File that stores email logging config. [{}]".format(pluginlogfile),
+        help="File that stores email logging config. [{}]".format(email_config),
         default=None)
     args = parser.parse_args()
 
