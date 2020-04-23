@@ -538,7 +538,7 @@ if __name__ == "__main__":
     # Set this up after argparse since it may be helpful to get those errors
     # back to stdout
     logfile = Path(args.log_file).resolve()
-    pluginlogfile = Path(args.log_file).resolve()
+    pluginlogfile = Path(args.plugin_log_file).resolve()
 
     # print(f"Setting up logging to {logfile}")
 
