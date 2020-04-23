@@ -15,7 +15,7 @@ import signal
 import socket 
 import sys
 import subprocess
-
+import threading
 
 #local
 import plugin
@@ -36,7 +36,7 @@ loggerName = "PluginManager"
 socketLocation = Path("/run/cybexp/inputs/")
 logfile = Path("/var/log/cybexp/inputManager.log")
 pluginlogfile = Path("/var/log/cybexp/plugin.log")
-
+email_config = Path("/etc/cybexp/email.conf")
 
 
 
@@ -62,7 +62,7 @@ def termSock(sockLocation:str):
             return False
 
 def signal_handler_exit(sig,frame):
-    global loggerName,
+    global loggerName, exitEvent
 
     logger = logging.getLogger(loggerName)
 
@@ -517,6 +517,10 @@ if __name__ == "__main__":
         '--plugin-log-file',
         help="File to store plugin's logs. [{}]".format(pluginlogfile),
         default=str(pluginlogfile))
+    parser.add_argument(
+        '--email-config',
+        help="File that stores email logging config. [{}]".format(pluginlogfile),
+        default=None)
     args = parser.parse_args()
 
 
@@ -550,11 +554,9 @@ if __name__ == "__main__":
     logs.setLoggerLevel(loggerName,logging.DEBUG)
     logs.setup_stdout(loggerName,formatter=formatter)
     logs.setup_file(loggerName,formatter=formatter,fileLoc=str(logfile))
-    # logs.setup_email(loggerName,formatter=formatter,
-    #     from_email='ignaciochg@gmail.com',
-    #     to=['ignaciochg@nevada.unr.edu'],
-    #     subject='Error found!',
-    #     cred=('ignaciochg@gmail.com', 'qadytrsyudzkdidu'))
+    if args.email_config:
+        email_config = Path(args.email_config).resolve()
+        logs.setup_email_from_file(srt(email_config),loggerName,formatter=formatter, level=logging.INFO, subject="Input Manager Error!")
 
     logger.info("Starting CTI collector...")
 
@@ -572,6 +574,9 @@ if __name__ == "__main__":
     if args.config_file:
         logger.info("Running Manager in offline mode (no DB).")
         run_input_plugins_file(args.api_config_file, args.config_file)
+        exitEvent = threading.Event()
+        exitEvent.wait()
+        signal_handler_kill_sockets(signal.SIGUSR1, "")
 
     else:
         logger.info("Running Manager in online mode (w/ databse).")
@@ -587,38 +592,10 @@ if __name__ == "__main__":
         inputDB.changeHandler(handleChange,exitEvent, api_config_file=args.api_config_file, inputDB=inputDB)
 
     sys.exit(0)
-# DEFAULT_MONGO = "mongodb://192.168.1.101:30001,192.168.1.101:30002,192.168.1.101:30003/?replicaSet=rs0"
-
-# client = pymongo.MongoClient(DEFAULT_MONGO)
-# db = client["InputDB"]
-# confCol = db["configs"]
-
-# change_stream = confCol.watch()
-# for change in change_stream:
-#     print(change)
-#     # print(json.dumps(change))
-#     print('') # for readability only
-
-
-
-
-
 
 
 
 
 # TODO
 # add socket manager
-# fix indents
-# signal handler 
-# error loggin
 
-
-
-
-# start
-# update
-# kill
-# killall
-# restart
-# restartall

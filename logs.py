@@ -25,10 +25,10 @@ class TlsSMTPHandler(logging.handlers.SMTPHandler):
                         ",".join(self.toaddrs),
                         self.getSubject(record),
                         formatdate(), msg)
+         smtp.ehlo() # for tls add this line
+         smtp.starttls() # for tls add this line
+         smtp.ehlo() # for tls add this line
          if self.username:
-            smtp.ehlo() # for tls add this line
-            smtp.starttls() # for tls add this line
-            smtp.ehlo() # for tls add this line
             smtp.login(self.username, self.password)
          smtp.sendmail(self.fromaddr, self.toaddrs, msg)
          smtp.quit()
@@ -104,7 +104,7 @@ def setup_stdout(loggerName="InputLogger",level=logging.DEBUG,formatter=exformat
    logger.addHandler(stdouth)
 
 if __name__ == "__main__":
-   logger = logging.getLogger("test")
+   logger = logging.getLogger("InputLogger")
 
    setLoggerLevel()
    setup_stdout(formatter=exformatter)

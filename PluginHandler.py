@@ -279,7 +279,7 @@ help\t\t\tthis help menu
 args = vars(parser.parse_args()) # required step to edit this
 # print(args)
 
-logfile = Path(args.log_file).resolve()
+logfile = Path(args["log_file"]).resolve()
 pid = str(os.getpid())
 loggerName = loggerName+str(pid)
 
@@ -319,7 +319,7 @@ if not socketLocation.is_dir():
 
 # pid = "test"
 server_address = str(socketLocation / "{}.sock".format(pid))
-logger.infor("New plugin, PID: {}, Loc: {}".format(pid,server_address))
+logger.info("New plugin, PID: {}, Loc: {}".format(pid,server_address))
 
 
 
