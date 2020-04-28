@@ -21,10 +21,8 @@ class InputPlugin(CybexSource):
         for event in persist(self.ws):
             if event.name == "text":
                 rr = self.post_event_to_cybex_api(event.json)
-                [
-                    self.logger.exception(str(r[0]) + " " + r[1])
-                    for r in rr
-                    if not r[0] == 200
-                ]
+                for r in rr:
+                    if r[0] < 200 or r[0] >= 300:
+                        self.logger.exception("{} {}".format(r[0], r[1]))
             else:
                 self.logger.info(event.name + " " + str(self))
