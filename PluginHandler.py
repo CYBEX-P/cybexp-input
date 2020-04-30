@@ -123,7 +123,7 @@ def run_input_plugin( URL:str, token:str, config:str):
         try:
             config = json.loads(config)
             input_plugin_name = config["input_plugin_name"]
-        except json.decoder.JSONDecodeError:
+        except (json.decoder.JSONDecodeError, KeyError):
             logger.critical("Can not initiate plugin with bad configuration: {}".format(config))
             sys.exit(1)
         try:
@@ -139,9 +139,15 @@ def run_input_plugin( URL:str, token:str, config:str):
             sys.exit(1)
 
         try:
+            plugin_instance = myplugin.InputPlugin(api_config, config, loggername=loggerName)
+        except:
+            logger.error("Fail to Instanciate plugin({}). Please make sure InputPlugin is defined".format(input_plugin_name))
+            sys.exit(1)
+
+        try:
             # run the plugin 
             runningPlugin = plugin.common.CybexSourceFetcher(
-                myplugin.InputPlugin(api_config, config, loggername=loggerName),
+                plugin_instance,
                 loggername=loggerName
             )
             if not DRY_RUN:
