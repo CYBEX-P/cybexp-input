@@ -1,0 +1,8 @@
+{
+  "mongo": { 
+		"mongo_url" : "mongodb://localhost:27017/"
+  },
+  "api": {
+    "url": "localhost:5000"
+  }
+}

@@ -1,6 +1,0 @@
-{
-  "api_srv": {
-    "url": "http://localhost:5000",
-    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE1ODI3NDkxOTAsIm5iZiI6MTU4Mjc0OTE5MCwianRpIjoiZjEyOTQxNmItZGFiYS00ODQ2LWE4YTEtYWQ3ZmVhY2Y4MmVmIiwiaWRlbnRpdHkiOiJuYWNobyIsImZyZXNoIjpmYWxzZSwidHlwZSI6ImFjY2VzcyJ9.OWmSkb7DSUz9_rmH9Uu3EKUODUy_rvXZNM6zalmEuuE"
-  }
-}
