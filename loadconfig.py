@@ -8,7 +8,7 @@ import tahoe
 default = {
     "mongo": { 
         "mongo_url": "mongodb://localhost:27017/",
-        "identity_db": "identity_db"
+        "identity_db": "identity_db",
         "identity_coll": "instance"
   },
     "api": {

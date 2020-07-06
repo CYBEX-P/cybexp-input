@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Websocket input plugin."""
 
-import jsons
+import json
 import lomond
+from lomond.persist import persist
+import pdb
 import requests
 
 
@@ -21,12 +23,11 @@ class WebSocket:
         self.timezone = input_config['data']['timezone'][0]
 
     def fetch_and_post(self):
-        for event in lomond.persist(self.ws):
+        for event in persist(self.ws):
             if event.name == "text":
-                event = event.json
+                event = event.text
                 files = {'file': event.encode()}
                 headers = {'Authorization': self.token}
-
                 requests.post(
                     self.post_url,
                     files=files,
@@ -37,4 +38,8 @@ class WebSocket:
                         'typetag': self.typetag,
                         'timezone': self.timezone
                         }
+                    )
+
+    def start(self):
+        self.fetch_and_post()
                 
