@@ -28,6 +28,7 @@ class WebSocket:
                 event = event.text
                 files = {'file': event.encode()}
                 headers = {'Authorization': self.token}
+                
                 requests.post(
                     self.post_url,
                     files=files,

@@ -12,7 +12,7 @@ default = {
         "identity_coll": "instance"
   },
     "api": {
-        "url": "localhost:5000"
+        "url": "http://localhost:5000/raw"
   }
 }
 

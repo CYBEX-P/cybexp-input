@@ -16,7 +16,7 @@ from plugin import WebSocket
 # Logging
 ##logging.basicConfig(filename = 'input.log') 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.ERROR,
     format='%(asctime)s %(levelname)s %(filename)s:%(lineno)s' \
     ' - %(funcName)() --  %(message)s'
     )
@@ -56,7 +56,7 @@ _BACKEND = get_identity_backend()
 ##        except:
 ##            pass
 ##    elif sig == signal.SIGUSR1:
-##        logging.info("restating all input...")
+##        logging.info("restarting all input...")
 ##        send_signals(_ALL_THREAD, signal.SIGTERM)
 ##        time.sleep(1)
 ##        _ALL_THREAD = run_input_plugins(_PLUGINS_TO_RUN) 
