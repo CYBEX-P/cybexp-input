@@ -45,10 +45,11 @@ def start_input(plugin_lst=None, name_lst=None):
     except:
         logging.error("can't load api config from config.json", exc_info=True)
         raise
-
+    print(len(_BACKEND.get_config(plugin_lst, name_lst))) # debug
     for input_config in _BACKEND.get_config(plugin_lst, name_lst):
-        name = input_config['data']['plugin'][0]
+        name = input_config['data']['name'][0]
         plugin = input_config['data']['plugin'][0]
+        print(name)
 
         if name in _RUNNING:
             logging.info(f"input already running: '{name}'")
@@ -59,7 +60,6 @@ def start_input(plugin_lst=None, name_lst=None):
             thread =  Plugin(input_config, api_config)
             thread.start()
             _RUNNING[name] = thread
-            print(_RUNNING)
         except:
             logging.error(f"failed to run input: '{name}'", exc_info=True)
 
@@ -71,7 +71,7 @@ def stop_input(plugin_lst=None, name_lst=None):
         api_config = get_apiconfig(_CONFIG_FILENAME)
     except:
         logging.error("can't load api config from config.json", exc_info=True)
-
+    
     for input_config in _BACKEND.get_config(plugin_lst, name_lst):
         name = input_config['data']['plugin'][0]
         plugin = input_config['data']['plugin'][0]
