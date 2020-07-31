@@ -4,6 +4,6 @@
   },
   "api": {
     "url": "http://localhost:5000/raw",
-    "token": ""
+    "token": "test"
   }
 }

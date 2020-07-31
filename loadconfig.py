@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import sys
 
 import tahoe
@@ -12,16 +13,19 @@ default = {
         "identity_coll": "instance"
   },
     "api": {
-        "url": "http://localhost:5000/raw"
+        "url": "http://localhost:5000/raw",
+        "token": ""
   }
 }
 
 
-def get_config():
+def get_config(filename='config.json'):
     """Read config from file `config.json`."""
   
-    try: 
-        with open('config.json', 'r') as f:
+    try:
+        this_dir = os.path.dirname(__file__)
+        filename = os.path.join(this_dir, filename)
+        with open(filename, 'r') as f:
             config = json.load(f)
     except FileNotFoundError:
         config = default
@@ -37,10 +41,10 @@ def get_config():
     return config
 
 
-def get_mongoconfig():
+def get_mongoconfig(filename='config.json'):
     """Configuration of Identity Backend."""
   
-    config = get_config()
+    config = get_config(filename)
     mongoconfig = config['mongo']
     for k, v in default['mongo'].items():
         if k not in mongoconfig:
@@ -48,19 +52,20 @@ def get_mongoconfig():
     return mongoconfig
       
 
-def get_apiconfig():
+def get_apiconfig(filename='config.json'):
     """Configuration of API."""
     
-    config = get_config()
+    config = get_config(filename)
     apiconfig = config['api']
+    
     for k, v in default['api'].items():
         if k not in apiconfig:
             apiconfig[k] = v
     return apiconfig
         
 
-def get_identity_backend():
-    mongoconfig = get_mongoconfig()
+def get_identity_backend(filename='config.json'):
+    mongoconfig = get_mongoconfig(filename)
     mongo_url = mongoconfig['mongo_url']
     dbname = mongoconfig['identity_db']
     collname = mongoconfig['identity_coll']

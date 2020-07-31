@@ -1,112 +1,103 @@
 #!/usr/bin/env python3
-"""Cybexp input module `main`."""
+"""Cybexp input module input.py."""
 
 import argparse
 import logging
+import os
 import pdb
-import signal
+import shlex
+import socket
+import subprocess
+import sys
 import time
-
-from tahoe.identity import IdentityBackend
-
-from loadconfig import get_identity_backend, get_apiconfig
-from plugin import WebSocket
-
-
-# Logging
-##logging.basicConfig(filename = 'input.log') 
-logging.basicConfig(
-    level=logging.ERROR,
-    format='%(asctime)s %(levelname)s %(filename)s:%(lineno)s' \
-    ' - %(funcName)() --  %(message)s'
-    )
-
-
-_NAME_TO_PLUGIN_MAP = {
-    "websocket": WebSocket,
-}
-
-_ALL_THREAD = None
-_NUM_EXIT_ATTEMPT = 0
-_PLUGINS_TO_RUN = None
-_BACKEND = get_identity_backend()
-
-
-##def send_signals(_ALL_THREAD, sig):
-##    for _, thread in _ALL_THREAD:
-##        thread.signal_handler(sig)
-##
-##
-##def signal_handler(sig, frame):
-##    global _ALL_THREAD, _NUM_EXIT_ATTEMPT, _PLUGINS_TO_RUN
-##    
-##    logging.info(f"handled signal {sig}, {frame}")
-##    
-##    if sig in [signal.SIGINT, signal.SIGTERM]:
-##        logging.info(f"# EXIT Attempt: {_NUM_EXIT_ATTEMPT}")
-##        _NUM_EXIT_ATTEMPT +=1
-##        
-##        if _NUM_EXIT_ATTEMPT < 2:
-##            signal_to_send = signal.SIGTERM
-##        else:
-##            signal_to_send = signal.SIGKILL
-##
-##        try:
-##            send_signals(_ALL_THREAD, signal_to_send)
-##        except:
-##            pass
-##    elif sig == signal.SIGUSR1:
-##        logging.info("restarting all input...")
-##        send_signals(_ALL_THREAD, signal.SIGTERM)
-##        time.sleep(1)
-##        _ALL_THREAD = run_input_plugins(_PLUGINS_TO_RUN) 
-##        logging.info("successfully restarted all input.")
-
-
-def run_input_plugin(plugin_name_lst):
-    api_config = get_apiconfig()
-    
-    _ALL_THREAD = list() 
-    for input_config in _BACKEND.get_config(plugin_name_lst):
-        plugin_name = input_config['data']['plugin'][0]
-        try:
-            Plugin = _NAME_TO_PLUGIN_MAP[plugin_name] 
-            thread =  Plugin(input_config, api_config)
-            thread.start()
-            _ALL_THREAD.append((input_config, thread))
-        except:
-            logging.error("Fail to run thread({plugin_name}).")
-
-        return _ALL_THREAD
-
-
-if __name__ == "__main__":
         
-    all_plugin = _BACKEND.get_all_plugin()
-        
-    parser = argparse.ArgumentParser()
 
-    # By default, run all input plugins
+
+if __name__ == "__main__":       
+    parser = argparse.ArgumentParser(description='Parse arguments.')
+    parser.add_argument(
+        'command',
+        default='start',
+        choices = ['start', 'stop', 'restart'],
+        help="start, stop, restart")
+    parser.add_argument(
+        '-c',
+        '--config',
+        default='config.json',
+        help="config file path")
     parser.add_argument(
         "-p",
-        "--plugins",
+        "--plugin",
         nargs="+",
-        help="Plugins to run.",
-        default=all_plugin,
+        help="plugin names to run",
     )
+    parser.add_argument(
+        "-n",
+        "--name",
+        nargs="+",
+        help="name of inputs to run",
+    )
+
     args = parser.parse_args()
 
-    for plugin_name in args.plugins:
-        if plugin_name not in _NAME_TO_PLUGIN_MAP:
-            raise NameError(f"invalid plugin: '{plugin_name}'")
+    host, port, nonce = None, None, None
+    try:
+        with open('runningconfig', 'r') as f:
+            host, port, nonce = f.readline().split(',')
+            if host in ['0.0.0.0', 'localhost']:
+                host = '127.0.0.1'
+            port = int(port)
+    except FileNotFoundError:
+        pass
+
+    sock = socket.socket()
+    try:
+        sock.connect((host, port))
+    except (ConnectionRefusedError, OSError, TypeError):
+        sock.close()
         
-##    signal.signal(signal.SIGINT, signal_handler) 
-##    signal.signal(signal.SIGTERM, signal_handler) 
-##    signal.signal(signal.SIGUSR1, signal_handler) 
+        if args.command != 'start':
+            raise ValueError("input module is not running")
 
-    _PLUGINS_TO_RUN = args.plugins # important to set global var
+        this_dir = os.path.dirname(__file__)
+        run_file = "run.py"
+        run_file = os.path.join(this_dir, run_file)
+        proc = subprocess.Popen([sys.executable, run_file])
+        pid = proc.pid
 
-    _ALL_THREAD = run_input_plugin(_PLUGINS_TO_RUN) 
+        sock = socket.socket()
+        starttime = time.time()
+        while time.time() - starttime < 5:
+            try:
+                with open('runningconfig', 'r') as f:
+                    host, port, nonce = f.readline().strip().split(',')
+                    if host in ['0.0.0.0', 'localhost']:
+                        host = '127.0.0.1'
+                    port = int(port)
+                sock.connect((host, port))
+
+                with open('runningconfig', 'a') as f:
+                    f.write(f"{pid}\n")
+                break
+            except (ConnectionRefusedError, OSError, ValueError):
+                continue
+                
+
+
+    cmd = " ".join(map(shlex.quote, sys.argv[1:]))
+    cmd = cmd.strip()
+    cmd = f"{nonce} {cmd}"
+    cmd = cmd.encode()
+
+    sock.send(cmd)
+    sock.close()
+
+
+        
+    
+        
+
+    
 
 
 

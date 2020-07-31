@@ -1,0 +1,120 @@
+[
+{
+    "ecs" : {
+        "version" : "1.4.0"
+    },
+    "cloud" : {
+        "region" : "ams3",
+        "instance" : {
+            "id" : "188928811"
+        },
+        "provider" : "digitalocean"
+    },
+    "sensor_domain" : [ 
+        "amsterdam"
+    ],
+    "@timestamp" : "2020-07-06T17:23:23.970Z",
+    "tags" : [ 
+        "beats_input_codec_plain_applied"
+    ],
+    "message" : "{\"eventid\": \"cowrie.login.failed\", \"username\": \"root\", \"timestamp\": \"2020-07-06T17:23:22.557512Z\", \"message\": \"login attempt [root/!qazxsw2] failed\", \"system\": \"SSHService ssh-userauth on HoneyPotSSHTransport,1014035,218.92.0.198\", \"isError\": 0, \"src_ip\": \"218.92.0.198\", \"session\": \"c0f36ac6\", \"password\": \"!qazxsw2\", \"sensor\": \"f89597a7c9bc\"}",
+    "input" : {
+        "type" : "log"
+    },
+    "log" : {
+        "offset" : 52453416,
+        "file" : {
+            "path" : "/var/lib/docker/volumes/docker-cowrie_cowrie-log/_data/cowrie.json"
+        }
+    },
+    "agent" : {
+        "type" : "filebeat",
+        "ephemeral_id" : "c8c70cab-7970-49d4-8975-eff16ddd30fc",
+        "hostname" : "Docker-Amsterdam",
+        "id" : "eadc8237-6ed3-49a4-b343-b85beeb462e5",
+        "version" : "7.6.2"
+    },
+    "host" : {
+        "architecture" : "x86_64",
+        "hostname" : "Docker-Amsterdam",
+        "id" : "e56c9e87db5d4babb1d378f5d0d7f862",
+        "name" : "Docker-Amsterdam",
+        "containerized" : false,
+        "os" : {
+            "kernel" : "4.15.0-66-generic",
+            "codename" : "bionic",
+            "version" : "18.04.4 LTS (Bionic Beaver)",
+            "family" : "debian",
+            "name" : "Ubuntu",
+            "platform" : "ubuntu"
+        }
+    },
+    "sensor_type" : [ 
+        "ssh"
+    ],
+    "container" : {
+        "id" : "docker-cowrie_cowrie-log"
+    },
+    "@version" : "1"
+},
+
+
+{
+    "ecs" : {
+        "version" : "1.4.0"
+    },
+    "cloud" : {
+        "region" : "ams3",
+        "instance" : {
+            "id" : "188928811"
+        },
+        "provider" : "digitalocean"
+    },
+    "sensor_domain" : [ 
+        "amsterdam"
+    ],
+    "@timestamp" : "2020-07-06T17:27:57.084Z",
+    "tags" : [ 
+        "beats_input_codec_plain_applied"
+    ],
+    "message" : "{\"eventid\": \"cowrie.direct-tcpip.request\", \"timestamp\": \"2020-07-06T17:27:56.736126Z\", \"session\": \"3d3491a9\", \"src_port\": 0, \"message\": \"direct-tcp connection request to 213.165.67.108:587 from 0.0.0.0:0\", \"system\": \"SSHService ssh-connection on HoneyPotSSHTransport,1013561,5.182.39.64\", \"isError\": 0, \"src_ip\": \"5.182.39.64\", \"dst_port\": 587, \"dst_ip\": \"213.165.67.108\", \"sensor\": \"f89597a7c9bc\"}",
+    "input" : {
+        "type" : "log"
+    },
+    "log" : {
+        "offset" : 52610544,
+        "file" : {
+            "path" : "/var/lib/docker/volumes/docker-cowrie_cowrie-log/_data/cowrie.json"
+        }
+    },
+    "agent" : {
+        "type" : "filebeat",
+        "ephemeral_id" : "c8c70cab-7970-49d4-8975-eff16ddd30fc",
+        "hostname" : "Docker-Amsterdam",
+        "id" : "eadc8237-6ed3-49a4-b343-b85beeb462e5",
+        "version" : "7.6.2"
+    },
+    "host" : {
+        "architecture" : "x86_64",
+        "hostname" : "Docker-Amsterdam",
+        "id" : "e56c9e87db5d4babb1d378f5d0d7f862",
+        "name" : "Docker-Amsterdam",
+        "containerized" : false,
+        "os" : {
+            "kernel" : "4.15.0-66-generic",
+            "codename" : "bionic",
+            "name" : "Ubuntu",
+            "version" : "18.04.4 LTS (Bionic Beaver)",
+            "family" : "debian",
+            "platform" : "ubuntu"
+        }
+    },
+    "sensor_type" : [ 
+        "ssh"
+    ],
+    "container" : {
+        "id" : "docker-cowrie_cowrie-log"
+    },
+    "@version" : "1"
+}
+]
