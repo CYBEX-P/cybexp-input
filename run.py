@@ -124,9 +124,6 @@ if __name__ == "__main__":
         help="name of inputs to run",
     )
 
-    
-
-    
               
     while True:
         try:

@@ -8,9 +8,7 @@ import requests
 import threading
 import time
 
-def exponential_backoff(n):
-    s = min(3600, (2 ** n) + (random.randint(0, 1000) / 1000))
-    time.sleep(s)
+
 
 
 class InputPlugin(threading.Thread):
@@ -21,34 +19,39 @@ class InputPlugin(threading.Thread):
     ``fetch(self)``. See ``InputPlugin.fetch(self)`` for more.
     """
     
-    timezone = 'UTC'
-    post_url = ''
-    token = ''
-    delay = 0  # seconds_between_fetches
-    
     def __init__(self, input_config, api_config=None):
-        if api_config:
-            self.post_url = api_config['url']
-            self.token = api_config['token']
+        self.post_url = api_config['url']
+        self.token = api_config['token']
         self.name_ = input_config['data']['name'][0]
         self.plugin = input_config['data']['plugin'][0]
         self.orgid = input_config['data']['orgid'][0]
         self.typetag = input_config['data']['typetag'][0]
         self.timezone = input_config['data']['timezone'][0]
-        if 'delay' in input_config['data']:
-            self.delay = input_config['data']['delay'][0]
+        try:
+            self.period = input_config['data']['period'][0]
+        except KeyError:
+            self.period = 0  # seconds_between_fetches
         
         self.exit_graceful = threading.Event()
         self.exit_now = threading.Event()
+
+        self.headers = {"Authorization": self.token}
+        self.data = {'name': self.name_, 'orgid': self.orgid,
+            'typetag': self.typetag, 'timezone': self.timezone}
+        
         super().__init__()
 
 
     def __str__(self):
         return (
-            f"Cybexp input: post url = {self.post_url}, "
-            f"name_ = {self.name_}, orgid = {self.orgid}, "
-            f"typetag = {self.typetag}, timezone = {self.timezone}."
-            )
+            f"CYBEX-P Input: post url = {self.post_url}, "
+            f"name = {self.name_}, plugin = {self.plugin},
+            f"orgid = {self.orgid}, typetag = {self.typetag}, "
+            f"timezone = {self.timezone}, period = {self.period}.")
+
+    def exponential_backoff(self, n):
+        s = min(3600, (2 ** n) + (random.randint(0, 1000) / 1000))
+        self.exit_graceful.wait(s)
 
     def fetch(self):
         """
@@ -66,7 +69,7 @@ class InputPlugin(threading.Thread):
         """
         
         raise NotImplementedError
-    
+        
 
     def post(self, events):
         """
@@ -98,12 +101,8 @@ class InputPlugin(threading.Thread):
 
         logging.info(f"posting '{len(events)}' events from '{self.name_}'")
 
-        headers = {"Authorization": self.token}
-        data = {'name': self.name_, 'orgid': self.orgid,
-                'typetag': self.typetag, 'timezone': self.timezone}
 
-
-        for i, e in enumerate(events):
+        for e in events:
             if self.exit_now.is_set():
                 break
             
@@ -143,9 +142,6 @@ class InputPlugin(threading.Thread):
         Does general error handling. Exponentially backs off (1hr max)
         if either ``self.fetch()`` or ``self.post()`` fails.
         """
-
-        events = self.fetch()
-        api_response = self.post(events)
 
         while True:
             if self.exit_graceful.is_set() or self.exit_now.is_set():
@@ -187,12 +183,15 @@ class InputPlugin(threading.Thread):
 
                 if n_failed_post > 0:
                     exponential_backoff(n_failed_post)
+
+            self.exit_graceful.wait(self.period)
         
 
     def exit_graceful(self):
         self.exit_graceful.set()
         
     def exit_now(self):
+        self.exit_graceful.set()
         self.exit_now.set()
 
         

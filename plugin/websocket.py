@@ -20,6 +20,9 @@ class WebSocket(InputPlugin):
         count = 0
         start = time.time()
         for event in persist(self.ws):
+            if self.exit_graceful.is_set():
+                break
+            
             if event.name == "text":
                 events.append(event.json)
                 count += 1
@@ -30,5 +33,7 @@ class WebSocket(InputPlugin):
                 break
             if time.time() - start > 15:
                 break
+
+        self.ws.close()
         return events
             
