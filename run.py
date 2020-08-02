@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import pdb
 import secrets
 import socket
@@ -85,7 +86,7 @@ def stop_input(plugin_lst=None, name_lst=None):
         thread.join(3.0)
         if thread.is_alive():
             thread.exit_now()
-            _ = _RUNNING.pop(name)
+        _ = _RUNNING.pop(name)
         
 
 if __name__ == "__main__":
@@ -150,7 +151,10 @@ if __name__ == "__main__":
                 start_input(args.plugin, args.name)
             elif args.command == 'stop':
                 stop_input(args.plugin, args.name)
-                sock.close()
+                if not _RUNNING:
+                    sock.close()
+                    os.remove('runningconfig')
+                    break
             elif args.command == 'restart':
                 restart_input(args.plugin, args.name)
                 
