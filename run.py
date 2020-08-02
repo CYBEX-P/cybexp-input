@@ -92,9 +92,9 @@ def stop_input(plugin_lst=None, name_lst=None):
 if __name__ == "__main__":
     sock = socket.socket()
     sock.bind(('', 0))
-##    sock.settimeout(5)
+    sock.settimeout(5)
     host, port = sock.getsockname()
-    nonce = secrets.token_hex(16)     # password # encrypt nonce
+    nonce = secrets.token_hex(16)     
     with open("runningconfig", "w") as f:
         f.write(f"{host},{port},{nonce}\n")
     sock.listen()
