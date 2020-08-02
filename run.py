@@ -18,7 +18,7 @@ from plugin import WebSocket
 # Logging
 logging.basicConfig(filename = 'input.log') 
 logging.basicConfig(
-    level=logging.ERROR,
+    level=logging.DEBUG,
     format='%(asctime)s %(levelname)s %(filename)s:%(lineno)s' \
     ' - %(funcName)() --  %(message)s'
     )
@@ -46,7 +46,7 @@ def start_input(plugin_lst=None, name_lst=None):
     except:
         logging.error("can't load api config from config.json", exc_info=True)
         raise
-    print(len(_BACKEND.get_config(plugin_lst, name_lst))) # debug
+
     for input_config in _BACKEND.get_config(plugin_lst, name_lst):
         name = input_config['data']['name'][0]
         plugin = input_config['data']['plugin'][0]
@@ -163,8 +163,9 @@ if __name__ == "__main__":
             break
         except socket.timeout:
             continue
-        except Exception as e:
-            print(e)
+        except:
+            logging.error("unknown error", exc_info=True)
+            
 
 
                 
