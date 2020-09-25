@@ -157,6 +157,8 @@ if __name__ == "__main__":
                     break
             elif args.command == 'restart':
                 restart_input(args.plugin, args.name)
+            elif args.command == 'status':
+                pass
                 
 
         except KeyboardInterrupt:

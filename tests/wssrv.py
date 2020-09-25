@@ -3,7 +3,7 @@ import json
 import time
 import websockets
 
-with open("testdata.json") as f:
+with open("testdata_lockheed_martin.json") as f:
     data = json.load(f)
 
 async def say_hello(websocket, path):
