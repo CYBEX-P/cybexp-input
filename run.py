@@ -34,11 +34,46 @@ _BACKEND = None
 
 
 def restart_input(plugin_lst=None, name_lst=None):
+    """
+    Restarts the input systems. Calls stop_input() then start_input()
+
+    Parameters
+    ----------
+    List of the plugins that will be passed to the identity backend object
+        Default: NULL
+    name_lst: List of Strings
+        List of names of the files that will be used to input data for tahoe
+        Default: NULL
+
+    """
     stop_input(plugin_lst=None, name_lst=None)
     start_input(plugin_lst=None, name_lst=None)
 
 
 def start_input(plugin_lst=None, name_lst=None):
+    """
+    Executes command to start an input thread.
+    Retrieves the api configurations and checks for any current running inputs.
+    Otherwise, a new input thread is executed and stored in global variable '_RUNNING'.
+
+    Parameters
+    ----------
+    plugin_lst: List of Strings
+        List of the plugins that will be passed to the identity backend object
+        Default: NULL
+    name_lst: List of Strings
+        List of names of the files that will be used to input data for tahoe
+        Default: NULL
+
+    Raises
+    ------
+    Api Error
+        raises a logging error with "can't api config from config.json" for improper api configurations in the json config file
+    Input Error
+        logs a 'run input error' with the name of the file.
+        
+
+    """
     global _RUNNING
     
     try:
@@ -57,15 +92,37 @@ def start_input(plugin_lst=None, name_lst=None):
             continue
         
         try:
-            Plugin = _PLUGIN_CLASS_MAP[plugin] 
-            thread =  Plugin(input_config, api_config)
-            thread.start()
+            Plugin = _PLUGIN_CLASS_MAP[plugin] #Assume it transfer Websocket
+            thread =  Plugin(input_config, api_config)  #thread object
+            thread.start() #start active input thread
             _RUNNING[name] = thread
         except:
             logging.error(f"failed to run input: '{name}'", exc_info=True)
 
 
 def stop_input(plugin_lst=None, name_lst=None):
+    """
+    Executes commands to terminate the current Input Process.
+    Checks first if there is a running process to terminate.
+    Otherwise, the thread current running in '_RUNNING' is transferred and exitted gracefully.
+
+    Parameters
+    ----------
+    plugin_lst: List of Strings
+        List of the plugins that will be passed to the identity backend object
+        Default: NULL
+    name_lst: List of Strings
+        List of names of the files that will be used to input data for tahoe
+        Default: NULL
+
+    Raises
+    ------
+    Api Error
+        raises a logging error with "can't api config from config.json" for improper api configurations in the json config file
+   
+
+
+    """
     global _RUNNING
     
     try:
@@ -133,6 +190,8 @@ if __name__ == "__main__":
             r = r.decode()
             r = r.split()
 
+            print('Input received')
+
             args = parser.parse_args(r)
 
             if args.nonce != nonce:
@@ -140,8 +199,10 @@ if __name__ == "__main__":
 
             _CONFIG_FILENAME = args.config
 
+            #_BACKEND becomes a identity_backend object
             _BACKEND = get_identity_backend(_CONFIG_FILENAME)
 
+            #check available plugins and retreive defaults
             if args.plugin is None and args.name is None:
                 all_plugin = _BACKEND.get_all_plugin()
                 all_plugin = list(set(all_plugin))
