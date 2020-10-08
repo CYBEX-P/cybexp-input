@@ -33,7 +33,6 @@ def get_config(filename='config.json'):
 
     Raises
     ------
-
     FileNotFoundError
         If no file is found, all configurations will default and raise a warning
     JSONDecodeError
