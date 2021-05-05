@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Websocket input plugin."""
 
 import logging

@@ -13,10 +13,19 @@ import time
 
 class InputPlugin(threading.Thread):
     """
-    Base class for CYBEX-P Input Plugins.
+    Base class for all CYBEX-P Input Plugins.
+
+    An input plugin fetches data from an input source. It then posts
+    the fetched data to CYBEX-P API, specifically the `raw/` endpoint
+    of the CYBEXP-API.
 
     All plugins must inherit this class and implement the method
-    ``fetch(self)``. See ``InputPlugin.fetch(self)`` for more.
+    ``fetch()``. See the method ``fetch()`` for more. 
+
+    Attributes
+    ----------
+    post_url : str
+        URL of the CYBEX-P API 'raw' endpoint.
     """
     
     def __init__(self, input_config, api_config=None):
@@ -30,7 +39,7 @@ class InputPlugin(threading.Thread):
         try:
             self.period = input_config['data']['period'][0]
         except KeyError:
-            self.period = 0  # seconds_between_fetches
+            self.period = 0     # wait seconds between fetches
         
         self.exit_graceful = threading.Event()
         self.exit_now = threading.Event()
@@ -118,7 +127,7 @@ class InputPlugin(threading.Thread):
             
             files = {'file': e}
             with requests.post(self.post_url, files=files,
-                               headers=headers, data=data) as r:
+                               headers=headers, data=self.data) as r:
                 if r.status_code >= 400:
                     logging.error((
                         f"error posting: name = {self.name_}, "
@@ -134,6 +143,7 @@ class InputPlugin(threading.Thread):
         Fetch and post events.
         
         Basically does the following::
+        
             events = self.fetch()
             apis_response = self.post(events)
 
@@ -158,10 +168,11 @@ class InputPlugin(threading.Thread):
                 except KeyboardInterrupt:
                     self.exit()
                 except NotImplementedError:
-                    logging.error("fetch() not implemented: '{self.plugin}'")
+                    logging.error("fetch() not implemented: '{self.plugin}'!")
                     self.exit()
                 except:
-                    logging.error("error fetching '{self.name_}'", exc_info=True)
+                    logging.error("error fetching '{self.name_}'!",
+                                  exc_info=True)
                     n_failed_fetch += 1
 
                 if n_failed_fetch > 0:
@@ -188,9 +199,13 @@ class InputPlugin(threading.Thread):
         
 
     def exit_graceful(self):
+        "Shutdown the input plugin gracefully."""
+        
         self.exit_graceful.set()
         
     def exit_now(self):
+        """Shutdown the input plugin immediately."""
+        
         self.exit_graceful.set()
         self.exit_now.set()
 
