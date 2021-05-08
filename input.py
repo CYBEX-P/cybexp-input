@@ -1,5 +1,17 @@
-#!/usr/bin/env python3
-"""Cybexp input module input.py."""
+"""
+Use this file to control the input module.
+
+This file takes commands like start, stop etc. and passes them to the
+`run.py` file. The `run.py` file has an websocket in an infinite loop.
+It is always listening for new commands. This file (`input.py`) starts
+up, takes in a user command, passes that commands to `run.py` and then
+shuts down.
+
+This file takes in the arguments and passes them to `run.py`. The
+`run.py` file parses those arguments. This file also parses the
+arguments just to catch and return any user error.
+
+"""
 
 import argparse
 import logging
@@ -10,11 +22,12 @@ import socket
 import subprocess
 import sys
 import time
-        
 
 
-if __name__ == "__main__":       
-    parser = argparse.ArgumentParser(description='Parse arguments.')
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(
+        description='Parse Input arguments.')
     parser.add_argument(
         'command',
         default='start',
@@ -39,6 +52,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    
 
     host, port, nonce = None, None, None
     try:
@@ -60,14 +74,13 @@ if __name__ == "__main__":
             raise ValueError("input module is not running")
 
         this_dir = os.path.dirname(__file__)
-        run_file = "run.py"
-        run_file = os.path.join(this_dir, run_file)
+        run_file = os.path.join(this_dir, "run.py")
         proc = subprocess.Popen([sys.executable, run_file])
         pid = proc.pid
 
         sock = socket.socket()
         starttime = time.time()
-        while time.time() - starttime < 5:
+        while time.time() - starttime < 5: # Allow run.py 5 seconds to create socket and start listening
             try:
                 with open('runningconfig', 'r') as f:
                     host, port, nonce = f.readline().strip().split(',')
@@ -79,7 +92,8 @@ if __name__ == "__main__":
                 with open('runningconfig', 'a') as f:
                     f.write(f"{pid}\n")
                 break
-            except (ConnectionRefusedError, OSError, ValueError):
+            except (FileNotFoundError, ConnectionRefusedError,
+                    OSError, ValueError):
                 continue
                 
 

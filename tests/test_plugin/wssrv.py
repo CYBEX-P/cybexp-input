@@ -3,10 +3,10 @@ import json
 import time
 import websockets
 
-with open("testdata_lockheed_martin.json") as f:
+with open("testdata.json") as f:
     data = json.load(f)
 
-async def say_hello(websocket, path):
+async def send_data(websocket, path):
     total = len(data)
     this = 0
     while True:
@@ -14,9 +14,11 @@ async def say_hello(websocket, path):
         this += 1
         if this == total:
             this = 0
-        
-start_server = websockets.serve(say_hello,'localhost', 4042)
+            break
+      
+start_server = websockets.serve(send_data,'localhost', 4042)
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
+
 
 

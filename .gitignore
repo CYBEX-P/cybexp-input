@@ -3,9 +3,9 @@
 *playpen.py
 *.ini
 Rubbish/
-input/TEMP/
 *_temp
-bak.*
+cleanup.*
+
 
 # ==================================
 # BOILERPLATE

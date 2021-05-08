@@ -1,4 +1,8 @@
-"""Cybexp input module `run.py`."""
+"""
+Cybexp input module `run.py`.
+
+Use this script to interact with the input module including start/stop.
+"""
 
 import argparse
 import logging
@@ -11,7 +15,7 @@ import time
 
 from tahoe.identity import IdentityBackend
 
-from loadconfig import get_identity_backend, get_apiconfig
+from loadconfig import get_identity_backend, get_config
 from plugin import WebSocket
 
 
@@ -28,57 +32,70 @@ _PLUGIN_CLASS_MAP = {
     "websocket": WebSocket,
 }
 
-_RUNNING = dict()
-_CONFIG_FILENAME = 'config.json'
-_BACKEND = None
+_RUNNING = dict()  # names of inputs running now
+_API_CONFIG = None
+_IDENTITY_BACKEND = None  # IdentityBackend
+
+
+def configure(config_filename='config.json'):
+    _IDENITY_BACKEND = get_identity_backend(config_filename)
+    _API_CONFIG = get_config(config_filename, 'api')
 
 
 def restart_input(plugin_lst=None, name_lst=None):
-    stop_input(plugin_lst=None, name_lst=None)
-    start_input(plugin_lst=None, name_lst=None)
+    stop_input(plugin_lst, name_lst)
+    start_input(plugin_lst, name_lst)
 
 
 def start_input(plugin_lst=None, name_lst=None):
-    global _RUNNING
-    
-    try:
-        api_config = get_apiconfig(_CONFIG_FILENAME)
-    except:
-        logging.error("can't load api config from config.json", exc_info=True)
-        raise
+    global _RUNNING, _API_CONFIG, _IDENTITY_BACKEND, _PLUGIN_CLASS_MAP
 
-    for input_config in _BACKEND.get_config(plugin_lst, name_lst):
-        name = input_config['data']['name'][0]
-        plugin = input_config['data']['plugin'][0]
-        print(name)
+    if _API_CONFIG is None:
+        raise ValueError("API config is None!")
+    api_raw_url = _API_CONFIG['url'] + '/raw'
 
-        if name in _RUNNING:
-            logging.info(f"input already running: '{name}'")
-            continue
-        
+    all_input_config = _IDENTITY_BACKEND.get_config(plugin_lst, name_lst)
+
+    for input_config in all_input_config:
         try:
-            Plugin = _PLUGIN_CLASS_MAP[plugin] 
-            thread =  Plugin(input_config, api_config)
+            name = input_config['data']['name'][0]
+            if name in _RUNNING:
+                logging.info(f"Input already running: '{name}'!")
+                continue
+        except:
+            logging.error(f"Failed to run input: '{input_config}'!",
+                          exc_info=True)
+
+        try:
+            orgid = input_config['data']['orgid'][0]
+            org = _IDENTITY_BACKEND.find_org(_hash=orgid)
+            if org is None:
+                logging.error(f"Unknown orgid={orgid} for input name={name}!")
+            api_token = org.token
+        
+        
+            plugin = input_config['data']['plugin'][0]
+            Plugin = _PLUGIN_CLASS_MAP[plugin]
+            
+            thread =  Plugin(input_config, api_raw_url, api_token)
             thread.start()
+
             _RUNNING[name] = thread
         except:
-            logging.error(f"failed to run input: '{name}'", exc_info=True)
+            logging.error(f"Failed to run input: '{name}'!", exc_info=True)
 
 
 def stop_input(plugin_lst=None, name_lst=None):
-    global _RUNNING
+    global _RUNNING, _IDENTITY_BACKEND
     
-    try:
-        api_config = get_apiconfig(_CONFIG_FILENAME)
-    except:
-        logging.error("can't load api config from config.json", exc_info=True)
-    
-    for input_config in _BACKEND.get_config(plugin_lst, name_lst):
-        name = input_config['data']['plugin'][0]
+    all_input_config = _IDENTITY_BACKEND.get_config(plugin_lst, name_lst)
+
+    for input_config in all_input_config:
+        name = input_config['data']['name'][0]
         plugin = input_config['data']['plugin'][0]
         
         if name not in _RUNNING:
-            logging.info(f"input is not running: '{name}'")
+            logging.info(f"input is not running: '{name}'!")
             continue
 
         thread = _RUNNING[name]
@@ -87,63 +104,71 @@ def stop_input(plugin_lst=None, name_lst=None):
         if thread.is_alive():
             thread.exit_now()
         _ = _RUNNING.pop(name)
-        
 
-if __name__ == "__main__":
-    sock = socket.socket()
-    sock.bind(('', 0))
-    sock.settimeout(5)
-    host, port = sock.getsockname()
-    nonce = secrets.token_hex(16)     
-    with open("runningconfig", "w") as f:
-        f.write(f"{host},{port},{nonce}\n")
-    sock.listen()
 
-    parser = argparse.ArgumentParser(description='Parse arguments.')
+def parse_args(args):
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         'nonce')
     parser.add_argument(
         'command',
-        default='start',
-        choices = ['start', 'stop', 'restart'],
-        help="start, stop, restart")
+        default = 'start',
+        choices = ['start', 'stop', 'restart', 'status'],
+        help = "start, stop, restart, 'status'")
     parser.add_argument(
         '-c',
         '--config',
-        default='config.json',
-        help="config file path")
+        default = 'config.json',
+        help = "config file path")
     parser.add_argument(
         "-p",
         "--plugin",
-        nargs="+",
-        help="plugin names to run",
-    )
+        nargs = "+",
+        help = "plugin names to run")
     parser.add_argument(
         "-n",
         "--name",
         nargs="+",
-        help="name of inputs to run",
-    )
+        help="name of inputs to run")
 
-              
+    return parser.parse_args(args)
+
+
+def create_socket():
+    sock = socket.socket()
+    sock.bind(('', 0))
+    sock.settimeout(5)
+    sock.listen()
+    host, port = sock.getsockname()
+    nonce = secrets.token_hex(16)     
+    with open("runningconfig", "w") as f:
+        f.write(f"{host},{port},{nonce}\n")
+    
+
+    return sock
+        
+def main():
+    global _IDENTITY_BACKEND
+    
+    sock = create_socket()
+
     while True:
         try:
-            r = sock.accept()[0] # vulnerability: if an attacker keeps sending wrong nonce continuously, we will be stuck here forever
-            r = r.recv(4096)
-            r = r.decode()
-            r = r.split()
+            res = sock.accept()[0] # vulnerability: if an attacker keeps sending wrong nonce continuously, we will be stuck here forever
+            res = res.recv(4096)
+            res = res.decode()
+            res = res.split()
 
-            args = parser.parse_args(r)
+            args = parse_args(res)
 
             if args.nonce != nonce:
                 continue
 
-            _CONFIG_FILENAME = args.config
-
-            _BACKEND = get_identity_backend(_CONFIG_FILENAME)
+            if _API_CONFIG is None:  # Only configure at startup
+                configure(args.config)
 
             if args.plugin is None and args.name is None:
-                all_plugin = _BACKEND.get_all_plugin()
+                all_plugin = _IDENTITY_BACKEND.get_all_plugin()
                 all_plugin = list(set(all_plugin))
                 args.plugin = all_plugin
 
@@ -166,7 +191,16 @@ if __name__ == "__main__":
         except socket.timeout:
             continue
         except:
-            logging.error("unknown error", exc_info=True)
+            logging.error("Unknown error!", exc_info=True)
+    
+
+
+if __name__ == "__main__":
+    main()
+
+    
+              
+    
             
 
 

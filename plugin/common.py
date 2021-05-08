@@ -26,11 +26,26 @@ class InputPlugin(threading.Thread):
     ----------
     post_url : str
         URL of the CYBEX-P API 'raw' endpoint.
+    token : str
+        Bearer (JWT) token to authorize with API.
+    name_ : str
+        Human readable name and unique identifier.
+    plugin : str
+        Plugin name or type of plugin.
+
+        Users can spin up two different instances of the same plugin.
+        They will have different `name_` but same value for `plugin`.
+        
+        For example an `WebSocket` plugin fetches data from an URL.
+        You can spin up two instances of the WebSocket plugin two
+        bring data from two different URLs. Those two instances will
+        have `plugin=websocket` but different values for `name_`.
+    
     """
     
-    def __init__(self, input_config, api_config=None):
-        self.post_url = api_config['url']
-        self.token = api_config['token']
+    def __init__(self, input_config, api_raw_url, api_token):
+        self.post_url = api_raw_url
+        self.token = api_token
         self.name_ = input_config['data']['name'][0]
         self.plugin = input_config['data']['plugin'][0]
         self.orgid = input_config['data']['orgid'][0]
@@ -41,8 +56,8 @@ class InputPlugin(threading.Thread):
         except KeyError:
             self.period = 0     # wait seconds between fetches
         
-        self.exit_graceful = threading.Event()
-        self.exit_now = threading.Event()
+        self.exit_graceful_event = threading.Event()
+        self.exit_now_event = threading.Event()
 
         self.headers = {"Authorization": self.token}
         self.data = {'name': self.name_, 'orgid': self.orgid,
@@ -54,13 +69,13 @@ class InputPlugin(threading.Thread):
     def __str__(self):
         return (
             f"CYBEX-P Input: post url = {self.post_url}, "
-            f"name = {self.name_}, plugin = {self.plugin},
+            f"name = {self.name_}, plugin = {self.plugin},"
             f"orgid = {self.orgid}, typetag = {self.typetag}, "
             f"timezone = {self.timezone}, period = {self.period}.")
 
     def exponential_backoff(self, n):
         s = min(3600, (2 ** n) + (random.randint(0, 1000) / 1000))
-        self.exit_graceful.wait(s)
+        self.exit_graceful_event.wait(s)
 
     def fetch(self):
         """
@@ -112,7 +127,7 @@ class InputPlugin(threading.Thread):
 
 
         for e in events:
-            if self.exit_now.is_set():
+            if self.exit_now_event.is_set():
                 break
             
             if isinstance(e, dict):
@@ -124,10 +139,10 @@ class InputPlugin(threading.Thread):
             else:
                 raise TypeError(f"events = '{type(events)}'")
 
-            
             files = {'file': e}
+            
             with requests.post(self.post_url, files=files,
-                               headers=headers, data=self.data) as r:
+                               headers=self.headers, data=self.data) as r:
                 if r.status_code >= 400:
                     logging.error((
                         f"error posting: name = {self.name_}, "
@@ -154,12 +169,13 @@ class InputPlugin(threading.Thread):
         """
 
         while True:
-            if self.exit_graceful.is_set() or self.exit_now.is_set():
+            if self.exit_graceful_event.is_set() or \
+                    self.exit_now_event.is_set():
                 break
 
             n_failed_fetch = 0
             while True:
-                if self.exit_now.is_set():
+                if self.exit_now_event.is_set():
                     break
                 
                 try:
@@ -176,11 +192,11 @@ class InputPlugin(threading.Thread):
                     n_failed_fetch += 1
 
                 if n_failed_fetch > 0:
-                    exponential_backoff(n_failed_fetch)
+                    self.exponential_backoff(n_failed_fetch)
 
             n_failed_post = 0
             while True:
-                if self.exit_now.is_set():
+                if self.exit_now_event.is_set():
                     break
             
                 try:
@@ -193,21 +209,21 @@ class InputPlugin(threading.Thread):
                     n_failed_post += 1
 
                 if n_failed_post > 0:
-                    exponential_backoff(n_failed_post)
+                    self.exponential_backoff(n_failed_post)
 
-            self.exit_graceful.wait(self.period)
+            self.exit_graceful_event.wait(self.period)
         
 
     def exit_graceful(self):
         "Shutdown the input plugin gracefully."""
         
-        self.exit_graceful.set()
+        self.exit_graceful_event.set()
         
     def exit_now(self):
         """Shutdown the input plugin immediately."""
         
-        self.exit_graceful.set()
-        self.exit_now.set()
+        self.exit_graceful_event.set()
+        self.exit_now_event.set()
 
         
         

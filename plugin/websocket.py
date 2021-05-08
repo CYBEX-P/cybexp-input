@@ -9,17 +9,17 @@ import time
 from .common import InputPlugin
 
 class WebSocket(InputPlugin):
-    def __init__(self, input_config, api_config=None):
+    def __init__(self, input_config, api_raw_url, api_token):
         self.url = input_config['data']['url'][0]
         self.ws = lomond.WebSocket(self.url)
-        super().__init__(input_config, api_config)
+        super().__init__(input_config, api_raw_url, api_token)
 
     def fetch(self):
         events = []
         count = 0
         start = time.time()
         for event in persist(self.ws):
-            if self.exit_graceful.is_set():
+            if self.exit_graceful_event.is_set():
                 break
             
             if event.name == "text":

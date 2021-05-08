@@ -1,9 +1,39 @@
 {
-  "mongo": { 
-		"mongo_url" : "mongodb://localhost:27017/"
-  },
-  "api": {
-    "url": "http://localhost:5000/raw",
-    "token": "test"
-  }
+    "api" : {
+        "url" : "https://cici-api:5000/",
+        "host" : "cici-api",
+        "port" : 5000,
+        "protocol" : "https",
+        "token" : "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWJfdHlwZSI6ImN5YmV4cF91c2VyIiwiX2hhc2giOiJjNjhjMTA5NTIyNGFiNjQxNGVjZDk4MmM2NTczYTkxMDFhODMzZjQ5ZWI0YmMzNWIyYWNkYmZhNjdlODEyYTkzIiwianRpIjoiYmM4NWY1N2EtZWQxYS00OTdiLTk5MjAtODMwYzc0M2I0YzkzIn0.63aiZcIEC5hxnD9pRE5mKgau2mfLOqy5RDAjuMg60GU"
+    },   
+    "cache" : {
+        "mongo_url" : "mongodb://cici-api/",
+        "db" : "cache_db",
+        "coll": "file_entries"
+    },
+    "report" : {
+        "mongo_url" : "mongodb://cici-api/",
+        "db" : "report_db",
+        "coll": "instance"
+    },
+    "identity" : {
+        "mongo_url" : "mongodb://cici-api/",
+        "idenity_db" : "identity_db",
+        "coll": "instance"
+    },
+    "tahoe": {
+        "mongo_url": "mongodb://mongo1,mongo2,mongo2:27020/?replicaSet=rs0",
+        "db": "tahoe_db",
+        "coll": "instance"
+    },
+    "analytics": {
+        "mongo_url": "mongodb://mongo1,mongo2,mongo2:27020/?replicaSet=rs0",
+        "db": "tahoe_db",
+        "coll": "instance"
+    },
+    "archive": {
+        "mongo_url": "mongodb://mongo1,mongo2,mongo2:27020/?replicaSet=rs0",
+        "db": "tahoe_db",
+        "coll": "instance"
+    }
 }
