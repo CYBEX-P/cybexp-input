@@ -38,7 +38,9 @@ _IDENTITY_BACKEND = None  # IdentityBackend
 
 
 def configure(config_filename='config.json'):
-    _IDENITY_BACKEND = get_identity_backend(config_filename)
+    global _API_CONFIG, _IDENTITY_BACKEND
+    
+    _IDENTITY_BACKEND = get_identity_backend(config_filename)
     _API_CONFIG = get_config(config_filename, 'api')
 
 
@@ -68,9 +70,10 @@ def start_input(plugin_lst=None, name_lst=None):
 
         try:
             orgid = input_config['data']['orgid'][0]
-            org = _IDENTITY_BACKEND.find_org(_hash=orgid)
+            org = _IDENTITY_BACKEND.find_org(_hash=orgid, parse=True)
             if org is None:
-                logging.error(f"Unknown orgid={orgid} for input name={name}!")
+                raise ValueError(f"Unknown orgid={orgid} for input name={name}!")
+
             api_token = org.token
         
         
@@ -145,12 +148,12 @@ def create_socket():
         f.write(f"{host},{port},{nonce}\n")
     
 
-    return sock
+    return sock, nonce
         
 def main():
     global _IDENTITY_BACKEND
     
-    sock = create_socket()
+    sock, nonce = create_socket()
 
     while True:
         try:
@@ -183,7 +186,7 @@ def main():
             elif args.command == 'restart':
                 restart_input(args.plugin, args.name)
             elif args.command == 'status':
-                pass
+                print(_RUNNING)
                 
 
         except KeyboardInterrupt:
@@ -194,8 +197,7 @@ def main():
             logging.error("Unknown error!", exc_info=True)
     
 
-
-if __name__ == "__main__":
+if __name__ == "__main__": # debug
     main()
 
     

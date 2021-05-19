@@ -45,7 +45,7 @@ class InputPlugin(threading.Thread):
     
     def __init__(self, input_config, api_raw_url, api_token):
         self.post_url = api_raw_url
-        self.token = api_token
+        self.token = "Bearer " + api_token
         self.name_ = input_config['data']['name'][0]
         self.plugin = input_config['data']['plugin'][0]
         self.orgid = input_config['data']['orgid'][0]
