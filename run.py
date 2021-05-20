@@ -21,11 +21,9 @@ from plugin import WebSocket
 
 # Logging
 logging.basicConfig(filename = 'input.log') 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s %(levelname)s %(filename)s:%(lineno)s' \
-    ' - %(funcName)() --  %(message)s'
-    )
+logging.basicConfig(level=logging.DEBUG,
+    format='\n\n%(asctime)s %(levelname)s: File %(filename)s,' \
+        ' line %(lineno)s in %(funcName)s \n%(message)s')
 
 
 _PLUGIN_CLASS_MAP = {
@@ -197,7 +195,7 @@ def main():
             logging.error("Unknown error!", exc_info=True)
     
 
-if __name__ == "__main__": # debug
+if __name__ == "__main__": 
     main()
 
     

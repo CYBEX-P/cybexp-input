@@ -12,8 +12,7 @@ from tahoe.identity.config import WebSocketConfig
 if __name__ != 'input.tests.plugin.test_websocket':
     import os, sys
     J = os.path.join
-    sys.path = [J('..','..','..')] + sys.path
-    del os
+    sys.path = [J('..','..','..'), J('..','..',), '..'] + sys.path
 
 from plugin import WebSocket
 
