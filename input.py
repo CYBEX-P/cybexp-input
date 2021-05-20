@@ -71,7 +71,8 @@ if __name__ == "__main__":
         sock.close()
         
         if args.command != 'start':
-            raise ValueError("input module is not running")
+            print("Input module is not running!")
+            sys.exit(1)
 
         this_dir = os.path.dirname(__file__)
         run_file = os.path.join(this_dir, "run.py")

@@ -187,7 +187,7 @@ def main():
                 print(_RUNNING)
                 
 
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt):
             break
         except socket.timeout:
             continue
