@@ -5,10 +5,10 @@ from loadconfig import get_identity_backend
 _ID_B = get_identity_backend()
 
 Org._backend = _ID_B
-User._backend = _ID_b
+User._backend = _ID_B
 WebSocketConfig._backend = _ID_B
 
-u = _ID_B.find_user(email='jthom@unr.edu')
+u = _ID_B.find_user(email='jthom@unr.edu', parse=True)
 o = Org('unr_honeypot', u, u, 'UNR Honeypot') 
 
 WebSocketConfig(

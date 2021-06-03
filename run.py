@@ -72,8 +72,8 @@ def start_input(plugin_lst=None, name_lst=None):
             if org is None:
                 raise ValueError(f"Unknown orgid={orgid} for input name={name}!")
 
-            api_token = org.token
-        
+            admin = org.get_admins()[0]            
+            api_token = admin.token        
         
             plugin = input_config['data']['plugin'][0]
             Plugin = _PLUGIN_CLASS_MAP[plugin]

@@ -1,6 +1,6 @@
 {
     "api" : {
-        "url" : "https://cybex-api.cse.unr.edu:5000/",
+        "url" : "https://cybex-api.cse.unr.edu:5000",
         "host" : "cybex-api.cse.unr.edu",
         "port" : 5000,
         "protocol" : "https",
