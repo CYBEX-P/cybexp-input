@@ -1,7 +1,8 @@
 """
-Cybexp input module `run.py`.
+This script `run.py` keeps running in the background.
 
-Use this script to interact with the input module including start/stop.
+The file `input.py` starts this script `run.py`passes commands to this script and exits itself.
+The `run.py` file keeps running in the background.
 """
 
 import argparse
