@@ -1,9 +1,0 @@
-{
-  "mongo": { 
-		"mongo_url" : "mongodb://localhost:27017/"
-  },
-  "api": {
-    "url": "http://localhost:5000/raw",
-    "token": "test"
-  }
-}
